@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<index version="1" name="PodSuite" commit="a03b7054b386592d8c68029aac91b140402a605d">
+<index version="1" name="PodSuite" commit="ed71e56f7a0833938db963d8b7fb99a181272e8c">
   <category name="PodSuite">
     <reapack name="PodSuite" type="script" desc="PodSuite">
       <version name="0.3.0" author="Nicolas Debois" time="2026-10-29T19:10:01Z">
@@ -14,6 +14,18 @@
         <source file="PodSuite - Reglages.lua" hash="122068169440a63d5fb18ac2fd77d7b6f7054e258b7b02878d2cfb524c21da0a69ee" main="main">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/a03b7054b386592d8c68029aac91b140402a605d/Scripts/PodSuite%20-%20Reglages.lua</source>
         <source file="PodSuite_lib.lua" hash="122098ccc8281a2ff32bc8036439aca7747cb35fbafc0be173913b3f382bd6e130c7">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/a03b7054b386592d8c68029aac91b140402a605d/Scripts/PodSuite_lib.lua</source>
         <source file="podsuite.html" hash="1220c61ac25c486104b4cf36c9ba40d9554f279c0618412e3a2d232c127801a29a4e">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/a03b7054b386592d8c68029aac91b140402a605d/www/podsuite.html</source>
+      </version>
+      <version name="0.3.1" author="Nicolas Debois" time="2026-10-29T19:21:26Z">
+        <changelog>• Page de dérushage bien plus grande : elle s'adapte à la taille de l'écran, et A− / A+ agrandissent toute l'interface
+• Calibration du clicker simplifiée : placez le curseur juste avant un clic, plus besoin de sélection temporelle
+• La page explique comment calibrer le clicker quand ce n'est pas encore fait</changelog>
+        <source file="PodSuite - Installer.lua" hash="12207630ce748e3211d8c4c10ee692bcc3db3b8b2da2a681fd1461a310e1b58d26a7" main="main">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/ed71e56f7a0833938db963d8b7fb99a181272e8c/Scripts/PodSuite%20-%20Installer.lua</source>
+        <source file="PodSuite - Serveur.lua" hash="1220771d672d1a133591ff43d88a5f10410c65b0e4a787233e68e2867535309fc035" main="main">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/ed71e56f7a0833938db963d8b7fb99a181272e8c/Scripts/PodSuite%20-%20Serveur.lua</source>
+        <source file="PodSuite - Transcrire.lua" hash="12206fffb5855c08a101922fba18652e59ed1fe0b89e10e8b4eb70474a655fd687d3" main="main">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/ed71e56f7a0833938db963d8b7fb99a181272e8c/Scripts/PodSuite%20-%20Transcrire.lua</source>
+        <source file="PodSuite - Calibrer le clicker.lua" hash="12208330dcb0867bbee42f379618764bc608bc7a36715293ce72d226bee892cbcdd7" main="main">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/ed71e56f7a0833938db963d8b7fb99a181272e8c/Scripts/PodSuite%20-%20Calibrer%20le%20clicker.lua</source>
+        <source file="PodSuite - Reglages.lua" hash="122068169440a63d5fb18ac2fd77d7b6f7054e258b7b02878d2cfb524c21da0a69ee" main="main">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/ed71e56f7a0833938db963d8b7fb99a181272e8c/Scripts/PodSuite%20-%20Reglages.lua</source>
+        <source file="PodSuite_lib.lua" hash="12203d30b51753ca9104e2b65c0f0e0239df0c7766f4d15168323b105fec97324ada">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/ed71e56f7a0833938db963d8b7fb99a181272e8c/Scripts/PodSuite_lib.lua</source>
+        <source file="podsuite.html" hash="1220aad93664270e10dd5b0b8fedf3412e7b99234748714277c258a779a0f353385c">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/ed71e56f7a0833938db963d8b7fb99a181272e8c/www/podsuite.html</source>
       </version>
       <metadata>
         <description>{\rtf1\ansi\deff0{\fonttbl{\f0 \fswiss Helvetica;}}\f0\fs22 Transcription et d\u233?rushage de podcast dans REAPER : Whisper en local, d\u233?tection du clicker, montage par le texte.\par}</description>
