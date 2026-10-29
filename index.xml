@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<index version="1" name="PodSuite" commit="a03b7054b386592d8c68029aac91b140402a605d">
+  <category name="PodSuite">
+    <reapack name="PodSuite" type="script" desc="PodSuite">
+      <version name="0.3.0" author="Nicolas Debois" time="2026-10-29T19:10:01Z">
+        <changelog>• Installation par ReaPack, avec un assistant qui installe Whisper et le modèle
+• Montage réel dans REAPER : pistes « ✂ » reconstruites depuis les rushes, coupes placées dans les silences
+• Plus de phrases perdues après une longue pause ; minutage des mots beaucoup plus précis
+• Nouvelle page de dérushage : file « À traiter », vue d'ensemble de l'épisode, raccourcis clavier, annulation</changelog>
+        <source file="PodSuite - Installer.lua" hash="12207630ce748e3211d8c4c10ee692bcc3db3b8b2da2a681fd1461a310e1b58d26a7" main="main">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/a03b7054b386592d8c68029aac91b140402a605d/Scripts/PodSuite%20-%20Installer.lua</source>
+        <source file="PodSuite - Serveur.lua" hash="1220771d672d1a133591ff43d88a5f10410c65b0e4a787233e68e2867535309fc035" main="main">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/a03b7054b386592d8c68029aac91b140402a605d/Scripts/PodSuite%20-%20Serveur.lua</source>
+        <source file="PodSuite - Transcrire.lua" hash="12206fffb5855c08a101922fba18652e59ed1fe0b89e10e8b4eb70474a655fd687d3" main="main">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/a03b7054b386592d8c68029aac91b140402a605d/Scripts/PodSuite%20-%20Transcrire.lua</source>
+        <source file="PodSuite - Calibrer le clicker.lua" hash="1220eaf4de6379c76009c6602e4dff1dfd8c3d76a2ab16d2209920844866a3cd1570" main="main">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/a03b7054b386592d8c68029aac91b140402a605d/Scripts/PodSuite%20-%20Calibrer%20le%20clicker.lua</source>
+        <source file="PodSuite - Reglages.lua" hash="122068169440a63d5fb18ac2fd77d7b6f7054e258b7b02878d2cfb524c21da0a69ee" main="main">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/a03b7054b386592d8c68029aac91b140402a605d/Scripts/PodSuite%20-%20Reglages.lua</source>
+        <source file="PodSuite_lib.lua" hash="122098ccc8281a2ff32bc8036439aca7747cb35fbafc0be173913b3f382bd6e130c7">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/a03b7054b386592d8c68029aac91b140402a605d/Scripts/PodSuite_lib.lua</source>
+        <source file="podsuite.html" hash="1220c61ac25c486104b4cf36c9ba40d9554f279c0618412e3a2d232c127801a29a4e">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/a03b7054b386592d8c68029aac91b140402a605d/www/podsuite.html</source>
+      </version>
+      <metadata>
+        <description>{\rtf1\ansi\deff0{\fonttbl{\f0 \fswiss Helvetica;}}\f0\fs22 Transcription et d\u233?rushage de podcast dans REAPER : Whisper en local, d\u233?tection du clicker, montage par le texte.\par}</description>
+        <link rel="website">https://github.com/nicolasdebois-pixel/PodSuite</link>
+      </metadata>
+    </reapack>
+  </category>
+</index>
