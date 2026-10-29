@@ -1,0 +1,761 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PodSuite · Dérushage</title>
+<style>
+/* Mise en page : transport + vue d'ensemble de l'épisode en haut ; transcription à gauche ; file « À traiter » à droite */
+:root{
+  --bg:#eef0f3; --paper:#ffffff; --panel:#f7f8fa; --ink:#15171c; --muted:#666c7a; --faint:#9aa0ad; --line:#dfe2e8;
+  --accent:#e5700b; --accent-ink:#ffffff;
+  --cut:#d8392b; --cut-wash:rgba(216,57,43,.13); --cut-strong:rgba(216,57,43,.26);
+  --warn:#b86e00; --warn-wash:rgba(232,150,20,.16);
+  --now:rgba(229,112,11,.22); --struck:#b0b5c0; --ok:#1f9d55;
+  --read:Charter,"Bitstream Charter","Iowan Old Style","Palatino Linotype",Georgia,serif;
+  --ui:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --fs:21px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#101216; --paper:#181b21; --panel:#1e2229; --ink:#e9ebf0; --muted:#9097a6; --faint:#5f6676; --line:#2a2f38;
+  --accent:#ff8a2a; --accent-ink:#1a0e02;
+  --cut:#ff6656; --cut-wash:rgba(255,102,86,.14); --cut-strong:rgba(255,102,86,.3);
+  --warn:#ffb340; --warn-wash:rgba(255,179,64,.15);
+  --now:rgba(255,138,42,.28); --struck:#555c69; --ok:#3ccf7d;
+  color-scheme:dark;
+}}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--ink);font:15px/1.45 var(--ui);display:flex;flex-direction:column;overflow:hidden}
+button{font:inherit;color:inherit;cursor:pointer;background:none;border:0;padding:0}
+button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+kbd{font:600 11px var(--mono);padding:1px 5px;border-radius:4px;border:1px solid var(--line);background:var(--panel);color:var(--muted)}
+
+/* ---------- Transport ---------- */
+.transport{background:var(--paper);border-bottom:1px solid var(--line);flex:none}
+.tbar{display:flex;align-items:center;gap:14px 22px;flex-wrap:wrap;padding:12px max(20px,env(safe-area-inset-left,0px)) 10px}
+.play{width:52px;height:52px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;flex:none;box-shadow:0 2px 10px rgba(229,112,11,.35)}
+.play svg{width:22px;height:22px}
+.clock{display:flex;flex-direction:column;min-width:0}
+.tc{font:500 30px/1 var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.tc small{font-size:18px;color:var(--muted)}
+.proj{font-size:13px;color:var(--muted);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:42ch}
+.opts{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto}
+.chip{display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 13px;border-radius:999px;border:1px solid var(--line);background:var(--panel);font-size:14px;color:var(--muted)}
+.chip::before{content:"";width:9px;height:9px;border-radius:50%;border:1.5px solid currentColor}
+.chip[aria-pressed=true]{color:var(--ink);border-color:var(--accent)}
+.chip[aria-pressed=true]::before{background:var(--accent);border-color:var(--accent)}
+.listen{display:flex;border:1px solid var(--line);border-radius:10px;padding:3px;background:var(--panel)}
+.listen button{height:30px;padding:0 14px;border-radius:7px;font-size:14px;font-weight:600;color:var(--muted)}
+.listen button[aria-checked=true]{background:var(--paper);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.15)}
+.listen.off{opacity:.45;pointer-events:none}
+.tools{display:flex;gap:6px;align-items:center}
+.ibtn{height:34px;min-width:34px;padding:0 10px;border-radius:8px;border:1px solid var(--line);background:var(--panel);font-size:14px;color:var(--ink)}
+.ibtn:disabled{opacity:.4;cursor:default}
+.state{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted);min-width:128px}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--faint);margin-right:6px}
+.dot.on{background:var(--ok)}.dot.rec{background:var(--cut)}.dot.bad{background:var(--cut)}
+
+.overview{position:relative;height:46px;margin:0 max(20px,env(safe-area-inset-left,0px)) 12px;cursor:pointer}
+.overview canvas{position:absolute;inset:0;width:100%;height:100%;border-radius:8px;background:var(--panel)}
+.banner{padding:9px 20px;font-size:14px;font-weight:500;color:var(--warn);background:var(--warn-wash);border-top:1px solid var(--line)}
+
+/* ---------- Corps ---------- */
+.app{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 380px}
+.script{background:var(--paper);overflow-y:auto;scroll-padding:30vh 0;padding:28px max(20px,env(safe-area-inset-left,0px)) 40vh}
+.script-in{max-width:880px;margin:0 auto}
+.p{display:grid;grid-template-columns:132px minmax(0,1fr);gap:4px 28px;padding:18px 0;border-bottom:1px solid var(--line)}
+.p:last-child{border-bottom:0}
+.who{padding-top:calc(var(--fs) * .32)}
+.who b{display:block;font-size:12.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--c)}
+.who time{display:inline-block;margin-top:3px;font:13px var(--mono);color:var(--muted);cursor:pointer;border-radius:4px}
+.who time:hover{color:var(--accent)}
+.txt{font:var(--fs)/1.75 var(--read);max-width:66ch;overflow-wrap:break-word}
+.w{border-radius:4px;cursor:pointer;padding:.08em 0;box-decoration-break:clone;-webkit-box-decoration-break:clone}
+.w:hover{background:color-mix(in srgb,var(--accent) 12%,transparent)}
+.w.sug{background:var(--cut-wash)}
+.w.focus{background:var(--cut-strong)}
+.w.x{color:var(--struck);text-decoration:line-through 2px var(--cut)}
+.hidecut .w.x{display:none}
+.w.now{background:var(--now);box-shadow:0 0 0 3px var(--now)}
+.mk{display:inline-grid;place-items:center;min-width:1.35em;height:1.35em;padding:0 .3em;margin:0 .2em;border-radius:999px;vertical-align:.12em;font:700 calc(var(--fs) * .55) var(--ui);color:#fff;background:var(--cut);cursor:pointer;user-select:none}
+.mk.n2{background:var(--warn)}
+.mk.handled{background:transparent;color:var(--faint);box-shadow:inset 0 0 0 1.5px var(--faint)}
+.mk.cur{box-shadow:0 0 0 3px var(--cut-strong)}
+
+.empty{max-width:52ch;margin:12vh auto 0;text-align:center;color:var(--muted);font-size:17px;line-height:1.6}
+.empty h2{color:var(--ink);font-size:24px;font-weight:650;margin:0 0 10px}
+
+/* ---------- Panneau latéral ---------- */
+.side{border-left:1px solid var(--line);background:var(--panel);overflow-y:auto;display:flex;flex-direction:column}
+.sec{padding:20px 22px;border-bottom:1px solid var(--line)}
+.lbl{font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 10px;display:flex;align-items:center;gap:8px}
+.big{font:650 36px/1 var(--ui);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.sub{color:var(--muted);font-size:13.5px;margin-top:6px}
+.meter{height:8px;border-radius:99px;background:var(--paper);overflow:hidden;margin-top:12px;border:1px solid var(--line)}
+.meter i{display:block;height:100%;background:var(--cut);width:0;transition:width .25s}
+.spks{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:14px;font-size:13.5px}
+.spks span{display:inline-flex;align-items:center;gap:6px}
+.spks i{width:10px;height:10px;border-radius:3px;background:var(--c)}
+
+.qhead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.qhead .lbl{margin:0}
+.count{display:inline-grid;place-items:center;min-width:22px;height:22px;padding:0 6px;border-radius:99px;background:var(--cut);color:#fff;font-size:12px;letter-spacing:0}
+.count.zero{background:var(--panel);color:var(--muted);border:1px solid var(--line)}
+.btn{height:32px;padding:0 12px;border-radius:8px;font-size:13.5px;font-weight:600;border:1px solid var(--line);background:var(--panel)}
+.btn.cut{background:var(--cut);border-color:var(--cut);color:#fff}
+.q{display:flex;flex-direction:column;gap:8px}
+.qi{border:1px solid var(--line);border-radius:10px;padding:11px 12px;background:var(--paper);cursor:pointer;display:grid;gap:7px}
+.qi:hover{border-color:var(--faint)}
+.qi.cur{border-color:var(--cut);box-shadow:0 0 0 3px var(--cut-wash);background:var(--paper)}
+.qi.n2.cur{border-color:var(--warn);box-shadow:0 0 0 3px var(--warn-wash)}
+.qt{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600}
+.qt .mk{font-size:11px;margin:0;height:20px;min-width:20px;cursor:inherit}
+.qt time{margin-left:auto;font:12.5px var(--mono);color:var(--muted);font-weight:400}
+.qx{font:14.5px/1.5 var(--read);color:var(--muted)}
+.qx s{color:var(--cut);text-decoration-thickness:1.5px}
+.qx em{font-style:normal;color:var(--ink)}
+.qa{display:flex;gap:6px}
+.qa .btn{height:30px;font-size:13px}
+.qdone{margin-top:14px}
+.qdone summary{cursor:pointer;color:var(--muted);font-size:13px;list-style:none}
+.qdone summary::-webkit-details-marker{display:none}
+.qdone summary::before{content:"▸ "}.qdone[open] summary::before{content:"▾ "}
+.qdone .qi{opacity:.75}
+.qdone .q{margin-top:8px}
+.qempty{color:var(--muted);font-size:14px;padding:6px 0}
+.keys{display:grid;grid-template-columns:auto 1fr;gap:7px 12px;font-size:13px;color:var(--muted);align-items:center}
+.keys span:nth-child(odd){white-space:nowrap}
+
+/* ---------- Barre de sélection ---------- */
+.selbar{position:fixed;z-index:20;display:flex;align-items:center;gap:4px;padding:5px;border-radius:12px;background:var(--ink);color:var(--bg);box-shadow:0 10px 30px rgba(0,0,0,.28);transform:translate(-50%,-100%)}
+.selbar button{height:34px;padding:0 12px;border-radius:8px;font-size:14px;font-weight:600}
+.selbar .main{background:var(--cut);color:#fff}
+.selbar span{font-size:12.5px;opacity:.7;padding:0 8px;white-space:nowrap}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:21;padding:10px 16px;border-radius:10px;background:var(--ink);color:var(--bg);font-size:14px;box-shadow:0 10px 30px rgba(0,0,0,.25);display:flex;gap:14px;align-items:center}
+.toast button{color:var(--accent);font-weight:700}
+
+@media (max-width:1000px){
+  body{overflow:auto;height:auto}
+  .app{grid-template-columns:1fr}
+  .side{border-left:0;border-top:1px solid var(--line);order:-1}
+  .script{overflow:visible;padding-bottom:30vh}
+  .sec.keysec{display:none}
+}
+@media (max-width:640px){
+  .p{grid-template-columns:1fr}
+  .who b{display:inline;margin-right:8px}
+  :root{--fs:18px}
+  .opts{margin-left:0}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<header class="transport">
+  <div class="tbar">
+    <button class="play" id="play" aria-label="Lecture ou arrêt (espace)" title="Lecture / arrêt (espace)"></button>
+    <div class="clock">
+      <div class="tc" id="tc">0:00:00<small>.0</small></div>
+      <div class="proj" id="proj">PodSuite</div>
+    </div>
+    <div class="listen off" id="listen" role="radiogroup" aria-label="Ce que REAPER fait entendre">
+      <button id="l-edit" role="radio" aria-checked="true" title="REAPER lit les pistes ✂ (le montage)">Montage</button>
+      <button id="l-raw" role="radio" aria-checked="false" title="REAPER lit les rushes d'origine">Rushes</button>
+    </div>
+    <div class="opts">
+      <button class="chip" id="follow" aria-pressed="true" title="Garde le mot en cours de lecture visible">Suivre la lecture</button>
+      <button class="chip" id="hidecut" aria-pressed="false" title="Masque les mots barrés dans la transcription">Masquer les coupes</button>
+    </div>
+    <div class="tools">
+      <button class="ibtn" id="undo" disabled title="Annuler (⌘Z / Ctrl+Z)">↶ Annuler</button>
+      <button class="ibtn" id="fsm" title="Texte plus petit" aria-label="Texte plus petit">A−</button>
+      <button class="ibtn" id="fsp" title="Texte plus grand" aria-label="Texte plus grand">A+</button>
+    </div>
+    <div class="state">
+      <span><i class="dot" id="d-reaper"></i><span id="t-reaper">REAPER</span></span>
+      <span><i class="dot" id="d-srv"></i><span id="t-srv">Serveur</span></span>
+    </div>
+  </div>
+  <div class="overview" id="overview" title="Vue d'ensemble : cliquez pour vous déplacer"><canvas id="ov"></canvas></div>
+  <div class="banner" id="banner" hidden></div>
+</header>
+
+<div class="app">
+  <main class="script" id="script"><div class="script-in" id="main"></div></main>
+  <aside class="side">
+    <section class="sec">
+      <h2 class="lbl">Durée après montage</h2>
+      <div class="big" id="final">—</div>
+      <div class="sub" id="cutinfo">Rien de coupé pour l'instant</div>
+      <div class="meter"><i id="meter"></i></div>
+      <div class="spks" id="spks"></div>
+    </section>
+    <section class="sec">
+      <div class="qhead">
+        <h2 class="lbl">À traiter <span class="count zero" id="qcount">0</span></h2>
+        <button class="btn cut" id="acceptall" hidden>Tout couper</button>
+      </div>
+      <div class="q" id="queue"></div>
+      <details class="qdone" id="qdone" hidden><summary id="qdonesum"></summary><div class="q" id="queuedone"></div></details>
+    </section>
+    <section class="sec keysec">
+      <h2 class="lbl">Raccourcis</h2>
+      <div class="keys">
+        <span><kbd>Espace</kbd></span><span>Lecture / arrêt</span>
+        <span><kbd>↓</kbd> <kbd>↑</kbd></span><span>Clic suivant / précédent</span>
+        <span><kbd>Entrée</kbd></span><span>Couper la suggestion</span>
+        <span><kbd>X</kbd></span><span>Ignorer</span>
+        <span><kbd>L</kbd></span><span>Écouter autour du clic</span>
+        <span><kbd>⌫</kbd></span><span>Barrer / rétablir la sélection</span>
+        <span><kbd>⌘Z</kbd></span><span>Annuler</span>
+      </div>
+    </section>
+  </aside>
+</div>
+
+<div class="selbar" id="selbar" hidden>
+  <span id="selinfo"></span>
+  <button class="main" id="sel-cut">Barrer</button>
+  <button id="sel-play">Écouter</button>
+</div>
+<div class="toast" id="toast" hidden><span id="toastmsg"></span><button id="toastundo">Annuler</button></div>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const ICON_PLAY = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l13-7.5z"/></svg>';
+const ICON_STOP = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg>';
+
+/* ================= Communication avec REAPER ================= */
+const srv = { state:0, pos:0, t:performance.now(), ok:false, hb:'', hbAt:0, version:null, mapver:null, listen:'edit' };
+/* ---- Carte rushes → montage, fournie par le serveur : [début, fin, position dans le montage] ---- */
+let segs = [];
+async function loadMap(){
+  try { const r = await fetch('/podsuite_map.json', { cache:'no-store' }); segs = r.ok ? (JSON.parse(await r.text()).segs || []) : []; }
+  catch(e){ segs = []; }
+  if (words.length) refresh();
+}
+const montageOn = () => segs.length > 0 && srv.listen !== 'raw';
+function toSrc(p){
+  if (!montageOn()) return p;
+  let lo = 0, hi = segs.length - 1;
+  while (lo < hi){ const m = (lo + hi + 1) >> 1; if (segs[m][2] <= p) lo = m; else hi = m - 1; }
+  const s = segs[lo]; return Math.min(s[1], s[0] + Math.max(0, p - s[2]));
+}
+function toDst(t){
+  if (!montageOn()) return t;
+  for (const s of segs){ if (t < s[1]) return s[2] + Math.max(0, t - s[0]); }
+  const s = segs[segs.length - 1]; return s[2] + (s[1] - s[0]);
+}
+async function req(cmd){
+  const r = await fetch('/_/' + cmd, { cache:'no-store' });
+  return (await r.text()).split('\n').map(l => l.split('\t'));
+}
+const send = cmd => req(cmd).catch(() => {});
+
+async function poll(){
+  const t0 = performance.now();
+  try{
+    const rows = await req('TRANSPORT;GET/EXTSTATE/PODSUITE/version;GET/EXTSTATE/PODSUITE/hb;GET/EXTSTATE/PODSUITE/mapver;GET/EXTSTATE/PODSUITE/listen');
+    const t1 = performance.now();
+    let ver = '', hb = '', mv = '';
+    for (const f of rows){
+      if (f[0] === 'TRANSPORT'){ srv.state = +f[1]; srv.pos = +f[2]; srv.t = (t0 + t1) / 2; }
+      else if (f[0] === 'EXTSTATE' && f[2] === 'version') ver = f[3] || '';
+      else if (f[0] === 'EXTSTATE' && f[2] === 'hb') hb = f[3] || '';
+      else if (f[0] === 'EXTSTATE' && f[2] === 'mapver') mv = f[3] || '';
+      else if (f[0] === 'EXTSTATE' && f[2] === 'listen') srv.listen = f[3] || 'edit';
+    }
+    srv.ok = true;
+    if (hb && hb !== srv.hb){ srv.hb = hb; srv.hbAt = t1; }
+    if (srv.version === null || ver !== srv.version){ srv.version = ver; loadData(); }
+    if (mv !== srv.mapver){ srv.mapver = mv; loadMap(); }
+  } catch(e){ srv.ok = false; }
+  setTimeout(poll, 30);
+}
+
+/* ================= Données ================= */
+let D = null, words = [], clicks = [], struck = new Uint8Array(0), ignored = new Set(), sugs = [], spans = [], cuts = [];
+let curQ = -1;
+const PALETTE = ['#e8590c','#1c7ed6','#2f9e44','#ae3ec9','#f08c00','#0c8599','#d6336c','#7048e8'];
+
+async function loadData(){
+  try{
+    const r = await fetch('/podsuite_data.json', { cache:'no-store' });
+    if (!r.ok) throw 0;
+    D = JSON.parse(await r.text());
+  } catch(e){ D = null; }
+  words = (D && D.words) || [];
+  clicks = (D && D.clicks) || [];
+  struck = new Uint8Array(words.length);
+  ignored = new Set(); undoStack.length = 0;
+  if (D && D.edits){
+    for (const [a, b] of (D.edits.strikes || [])) for (let i = a; i <= b && i < words.length; i++) struck[i] = 1;
+    for (const c of (D.edits.ignored || [])) ignored.add(c);
+  }
+  for (const c of clicks) c.idx = firstWordAt(c.t);
+  computeSuggestions();
+  curQ = -1;
+  render();
+}
+
+function firstWordAt(t){ let lo = 0, hi = words.length; while (lo < hi){ const m = (lo + hi) >> 1; if (words[m].a < t) lo = m + 1; else hi = m; } return lo; }
+function wordAtTime(t){
+  let lo = 0, hi = words.length - 1, r = -1;
+  while (lo <= hi){ const m = (lo + hi) >> 1; if (words[m].a <= t){ r = m; lo = m + 1; } else hi = m - 1; }
+  if (r >= 0 && t > words[r].b + 0.35) return -1;
+  return r;
+}
+const norm = w => w.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '');
+const endsSentence = w => /[.?!…]["»”]?$/.test(w);
+
+/* ---- Suggestions de coupe à partir des clics ---- */
+function computeSuggestions(){
+  sugs = clicks.map(() => null);
+  let prevBound = 0;
+  clicks.forEach((c, ci) => {
+    const idx = c.idx, lo0 = prevBound;
+    prevBound = Math.max(prevBound, idx);
+    if (c.n === 2 || idx === 0) return;
+    let start = -1;
+    if (c.n === 1){
+      const lo = Math.max(lo0, idx - 60);
+      const after = [];
+      for (let j = idx; j < words.length && after.length < 8; j++){ const n = norm(words[j].w); if (n) after.push(n); }
+      for (let k = Math.min(6, after.length); k >= 2 && start < 0; k--){
+        for (let i = idx - k; i >= lo; i--){
+          let ok = true;
+          for (let q = 0; q < k; q++) if (norm(words[i + q].w) !== after[q]){ ok = false; break; }
+          if (ok){ start = i; break; }
+        }
+      }
+      if (start < 0){
+        let j = idx - 1;
+        while (j > lo && idx - j < 40){
+          if (endsSentence(words[j - 1].w) || words[j].a - words[j - 1].b > 0.6) break;
+          j--;
+        }
+        start = j;
+      }
+    } else {
+      let j = idx - 1;
+      while (j > lo0 && idx - j < 200 && words[j].a - words[j - 1].b <= 1.5) j--;
+      start = j;
+    }
+    if (start >= lo0 && start <= idx - 1) sugs[ci] = { a:start, b:idx - 1 };
+  });
+}
+// pending | done | ignored | review | seen
+function qState(ci){
+  if (clicks[ci].n === 2) return ignored.has(ci) ? 'seen' : 'review';
+  const s = sugs[ci];
+  if (!s) return ignored.has(ci) ? 'seen' : 'review';
+  if (ignored.has(ci)) return 'ignored';
+  for (let i = s.a; i <= s.b; i++) if (!struck[i]) return 'pending';
+  return 'done';
+}
+const isOpen = ci => { const s = qState(ci); return s === 'pending' || s === 'review'; };
+
+/* ================= Formats ================= */
+const fmt = t => { t = Math.max(0, t); const h = Math.floor(t / 3600), m = Math.floor(t / 60) % 60, s = Math.floor(t) % 60; return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`; };
+const fmtShort = t => { t = Math.max(0, t); const m = Math.floor(t / 60), s = Math.floor(t) % 60; return `${m}:${String(s).padStart(2, '0')}`; };
+const fmtD = t => { t = Math.max(0, Math.round(t)); const h = Math.floor(t / 3600), m = Math.floor(t / 60) % 60, s = t % 60;
+  return h ? `${h} h ${String(m).padStart(2, '0')} min` : (m ? `${m} min ${String(s).padStart(2, '0')} s` : `${s} s`); };
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
+function spkColor(i){
+  const s = D.speakers[i - 1]; let c = (s && s.color) || PALETTE[(i - 1) % PALETTE.length];
+  const r = parseInt(c.substr(1, 2), 16), g = parseInt(c.substr(3, 2), 16), b = parseInt(c.substr(5, 2), 16);
+  const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+  if (lum < 60 || lum > 215) c = PALETTE[(i - 1) % PALETTE.length];   // couleur de piste illisible
+  return c;
+}
+const spkName = i => { const s = D.speakers[i - 1]; return (s && s.name) || `Intervenant ${i}`; };
+const TYPES = { 1:'Prise ratée', 2:'À réécouter', 3:'Paragraphe à jeter' };
+const MARK = { 1:'✕', 2:'!', 3:'✕3' };
+
+/* ================= Rendu de la transcription ================= */
+function render(){
+  const main = $('main'); main.textContent = ''; spans = [];
+  if (!D || D.empty || !words.length){
+    main.innerHTML = `<div class="empty"><h2>Pas encore de transcription</h2>
+      <p>Dans REAPER, sélectionnez les items des intervenants (un par piste), puis lancez <b>PodSuite - Transcrire</b>.
+      Le texte apparaîtra ici tout seul.</p></div>`;
+    $('proj').textContent = (D && D.project) || 'PodSuite';
+    renderSide(); drawOverviewStatic(); return;
+  }
+  $('proj').textContent = `${D.project || ''} · transcrit le ${D.created || ''}`;
+
+  const byIdx = new Map();
+  clicks.forEach((c, ci) => { if (!byIdx.has(c.idx)) byIdx.set(c.idx, []); byIdx.get(c.idx).push(ci); });
+  const mk = ci => { const m = document.createElement('span'); m.className = `mk n${clicks[ci].n}`; m.dataset.c = ci; m.textContent = MARK[clicks[ci].n]; m.title = TYPES[clicks[ci].n]; return m; };
+
+  const frag = document.createDocumentFragment();
+  let txt = null, para = null, lastS = -1, count = 0;
+  const newPara = i => {
+    para = document.createElement('section'); para.className = 'p';
+    const s = words[i].s; para.style.setProperty('--c', spkColor(s));
+    para.innerHTML = `<div class="who"><b>${esc(spkName(s))}</b><time data-t="${words[i].a}" title="Aller à ce moment">${fmt(words[i].a)}</time></div>`;
+    txt = document.createElement('div'); txt.className = 'txt';
+    para.appendChild(txt); frag.appendChild(para);
+    lastS = s; count = 0;
+  };
+  for (let i = 0; i < words.length; i++){
+    const w = words[i];
+    if (!para || w.s !== lastS || (i > 0 && w.a - words[i - 1].b > 2.0) || (count > 110 && endsSentence(words[i - 1].w))) newPara(i);
+    if (byIdx.has(i)) for (const ci of byIdx.get(i)){ txt.appendChild(mk(ci)); txt.appendChild(document.createTextNode(' ')); }
+    const sp = document.createElement('span'); sp.className = 'w'; sp.dataset.i = i; sp.textContent = w.w + ' ';
+    txt.appendChild(sp);
+    spans[i] = sp; count++;
+  }
+  if (byIdx.has(words.length)) for (const ci of byIdx.get(words.length)) txt.appendChild(mk(ci));
+  main.appendChild(frag);
+  refresh();
+}
+
+function refresh(){
+  buildCuts();
+  const sug = new Uint8Array(words.length), foc = new Uint8Array(words.length);
+  sugs.forEach((s, ci) => { if (s && qState(ci) === 'pending') for (let i = s.a; i <= s.b; i++){ sug[i] = 1; if (ci === curQ) foc[i] = 1; } });
+  for (let i = 0; i < words.length; i++){
+    const c = spans[i].classList;
+    c.toggle('x', !!struck[i]); c.toggle('sug', !!sug[i] && !struck[i]); c.toggle('focus', !!foc[i] && !struck[i]);
+  }
+  document.querySelectorAll('#main .mk').forEach(m => { const ci = +m.dataset.c; m.classList.toggle('handled', !isOpen(ci)); m.classList.toggle('cur', ci === curQ); });
+  renderSide(); drawOverviewStatic();
+}
+
+/* ================= Panneau latéral ================= */
+function excerpt(ci){
+  const s = sugs[ci], c = clicks[ci], out = [];
+  const take = (a, b, max) => { const ws = words.slice(a, b + 1).map(w => w.w); return ws.length > max ? ws.slice(0, 4).join(' ') + ' … ' + ws.slice(-(max - 5)).join(' ') : ws.join(' '); };
+  if (s) out.push(`<s>${esc(take(s.a, s.b, 14))}</s>`);
+  else if (c.idx > 0) out.push(esc(take(Math.max(0, c.idx - 8), c.idx - 1, 8)));
+  const next = words.slice(c.idx, c.idx + 7).map(w => w.w).join(' ');
+  if (next) out.push(`→ <em>${esc(next)}${c.idx + 7 < words.length ? '…' : ''}</em>`);
+  return out.join(' ');
+}
+function qItem(ci){
+  const c = clicks[ci], st = qState(ci);
+  const el = document.createElement('div');
+  el.className = `qi n${c.n}` + (ci === curQ ? ' cur' : ''); el.dataset.c = ci; el.tabIndex = 0;
+  let actions = '';
+  if (st === 'pending') actions = `<button class="btn cut" data-act="cut">Couper</button><button class="btn" data-act="ignore">Ignorer</button>`;
+  else if (st === 'review') actions = `<button class="btn" data-act="listen">▶ Écouter</button><button class="btn" data-act="ignore">Vu</button>`;
+  else if (st === 'done') actions = `<button class="btn" data-act="uncut">Rétablir</button>`;
+  else actions = `<button class="btn" data-act="unignore">Remettre à traiter</button>`;
+  const status = { done:' · coupé', ignored:' · ignoré', seen:' · vu' }[st] || '';
+  el.innerHTML = `<div class="qt"><span class="mk n${c.n}">${MARK[c.n]}</span>${TYPES[c.n]}${status}<time>${fmtShort(c.t)}</time></div>
+    <div class="qx">${excerpt(ci)}</div><div class="qa">${actions}</div>`;
+  return el;
+}
+function renderSide(){
+  const dur = D && words.length ? (D.stop || 0) - (D.start || 0) : 0;
+  let cut = 0; for (const r of cuts) cut += r.b - r.a;
+  $('final').textContent = dur ? fmtD(dur - cut) : '—';
+  $('cutinfo').textContent = !dur ? 'Aucune transcription' : (cut > 0.5 ? `${fmtD(cut)} coupées sur ${fmtD(dur)} (${Math.round(100 * cut / dur)} %)` : `Rien de coupé sur ${fmtD(dur)}`);
+  $('meter').style.width = dur ? (100 * cut / dur).toFixed(1) + '%' : '0';
+  $('spks').innerHTML = D && D.speakers && words.length ? D.speakers.map((s, i) => `<span style="--c:${spkColor(i + 1)}"><i></i>${esc(spkName(i + 1))}</span>`).join('') + `<span>${words.length} mots</span>` : '';
+
+  const open = [], closed = [];
+  clicks.forEach((c, ci) => (isOpen(ci) ? open : closed).push(ci));
+  $('qcount').textContent = open.length; $('qcount').classList.toggle('zero', !open.length);
+  const q = $('queue'); q.textContent = '';
+  if (!open.length) q.innerHTML = `<div class="qempty">${clicks.length ? 'Tout est traité.' : (D && D.calibrated === false ? 'Aucun clic : le clicker n\'est pas calibré (script PodSuite - Calibrer le clicker).' : 'Aucun clic détecté.')}</div>`;
+  for (const ci of open) q.appendChild(qItem(ci));
+  const qd = $('queuedone'); qd.textContent = '';
+  for (const ci of closed) qd.appendChild(qItem(ci));
+  $('qdone').hidden = !closed.length; $('qdonesum').textContent = `Traités (${closed.length})`;
+  $('acceptall').hidden = open.filter(ci => qState(ci) === 'pending').length < 2;
+}
+
+/* ---- Plages coupées ---- */
+function buildCuts(){
+  cuts = [];
+  if (segs.length && D){
+    let t = D.start || 0;
+    for (const s of segs){ if (s[0] - t > 0.01) cuts.push({ a:t, b:s[0] }); t = s[1]; }
+    if ((D.stop || 0) - t > 0.01) cuts.push({ a:t, b:D.stop });
+    return;
+  }
+  for (let i = 0; i < words.length; i++){
+    if (!struck[i]) continue;
+    let j = i; while (j + 1 < words.length && struck[j + 1]) j++;
+    let a = words[i].a, b = words[j].b;
+    for (const c of clicks) if (c.idx === j + 1 && c.n !== 2) b = Math.max(b, c.e);
+    if (j + 1 < words.length) b = Math.min(Math.max(b, words[j].b), words[j + 1].a);
+    cuts.push({ a, b }); i = j;
+  }
+}
+
+/* ================= Vue d'ensemble ================= */
+const ov = $('ov'), octx = ov.getContext('2d');
+let ovStatic = null, OW = 0, OH = 0;
+function css(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+function ovResize(){ const dpr = devicePixelRatio || 1; OW = ov.clientWidth; OH = ov.clientHeight; ov.width = OW * dpr; ov.height = OH * dpr; drawOverviewStatic(); }
+const tx = t => { const a = D.start || 0, b = D.stop || 1; return (t - a) / Math.max(0.001, b - a) * OW; };
+function drawOverviewStatic(){
+  const dpr = devicePixelRatio || 1;
+  ovStatic = document.createElement('canvas'); ovStatic.width = ov.width; ovStatic.height = ov.height;
+  const c = ovStatic.getContext('2d'); c.scale(dpr, dpr);
+  if (!D || !words.length) return;
+  const n = Math.max(1, D.speakers.length), lane = (OH - 16) / n;
+  for (let i = 0; i < words.length; i++){
+    const w = words[i], x0 = tx(w.a), x1 = Math.max(x0 + 1, tx(w.b));
+    c.fillStyle = spkColor(w.s); c.globalAlpha = struck[i] ? 0.18 : 0.75;
+    c.fillRect(x0, 8 + (w.s - 1) * lane + 1, x1 - x0, Math.max(2, lane - 2));
+  }
+  c.globalAlpha = 1;
+  c.fillStyle = css('--cut-wash');
+  for (const r of cuts) c.fillRect(tx(r.a), 0, Math.max(1, tx(r.b) - tx(r.a)), OH);
+  clicks.forEach((k, ci) => {
+    const x = Math.round(tx(k.t));
+    c.fillStyle = isOpen(ci) ? (k.n === 2 ? css('--warn') : css('--cut')) : css('--faint');
+    c.fillRect(x - 1, 0, 2, OH);
+    c.beginPath(); c.moveTo(x - 5, 0); c.lineTo(x + 5, 0); c.lineTo(x, 6); c.fill();
+  });
+}
+function drawOverview(t){
+  octx.setTransform(1, 0, 0, 1, 0, 0); octx.clearRect(0, 0, ov.width, ov.height);
+  if (ovStatic) octx.drawImage(ovStatic, 0, 0);
+  if (!D || !words.length) return;
+  const dpr = devicePixelRatio || 1; octx.scale(dpr, dpr);
+  const x = tx(t);
+  octx.fillStyle = css('--ink'); octx.fillRect(Math.round(x) - 1, 0, 2, OH);
+}
+$('overview').addEventListener('click', e => {
+  if (!D || !words.length) return;
+  const r = ov.getBoundingClientRect(), f = (e.clientX - r.left) / r.width;
+  seek((D.start || 0) + f * ((D.stop || 0) - (D.start || 0)));
+});
+new ResizeObserver(ovResize).observe(ov);
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', drawOverviewStatic);
+
+/* ================= Modifications + annulation ================= */
+const undoStack = [];
+function snapshot(){ undoStack.push({ s:struck.slice(), i:new Set(ignored) }); if (undoStack.length > 200) undoStack.shift(); $('undo').disabled = false; }
+function undo(){
+  const u = undoStack.pop(); if (!u) return;
+  struck = u.s; ignored = u.i; $('undo').disabled = !undoStack.length; changed(); toast('Modification annulée', false);
+}
+let sendTimer = null;
+function changed(){
+  refresh();
+  clearTimeout(sendTimer);
+  sendTimer = setTimeout(() => {
+    const ranges = [];
+    for (let i = 0; i < words.length; i++){ if (!struck[i]) continue; let j = i; while (j + 1 < words.length && struck[j + 1]) j++; ranges.push(`${i}-${j}`); i = j; }
+    const v = `S${ranges.join('.')}~I${[...ignored].join('.')}`;
+    send(`SET/EXTSTATE/PODSUITE/edits/${encodeURIComponent(v)};SET/EXTSTATE/PODSUITE/edits_rev/${Date.now()}`);
+  }, 250);
+}
+function setRange(a, b, v){ for (let i = a; i <= b; i++) struck[i] = v; }
+
+let toastTimer = null;
+function toast(msg, withUndo = true){
+  $('toastmsg').textContent = msg; $('toastundo').hidden = !withUndo; $('toast').hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => { $('toast').hidden = true; }, 3500);
+}
+$('toastundo').onclick = () => { undo(); $('toast').hidden = true; };
+$('undo').onclick = undo;
+
+function act(ci, what){
+  const s = sugs[ci];
+  snapshot();
+  if (what === 'cut' && s){ setRange(s.a, s.b, 1); toast(`${s.b - s.a + 1} mots coupés`); }
+  else if (what === 'uncut' && s){ setRange(s.a, s.b, 0); }
+  else if (what === 'ignore'){ ignored.add(ci); }
+  else if (what === 'unignore'){ ignored.delete(ci); }
+  else { undoStack.pop(); $('undo').disabled = !undoStack.length; return; }
+  const wasOpen = curQ === ci;
+  changed();
+  if (wasOpen && (what === 'cut' || what === 'ignore')) gotoQ(nextOpen(ci, 1), false);
+}
+$('acceptall').onclick = () => {
+  snapshot(); let n = 0;
+  clicks.forEach((c, ci) => { if (qState(ci) === 'pending'){ const s = sugs[ci]; setRange(s.a, s.b, 1); n++; } });
+  changed(); toast(`${n} suggestions coupées`);
+};
+
+/* ================= Navigation dans la file ================= */
+function nextOpen(from, dir){
+  const open = clicks.map((c, ci) => ci).filter(isOpen);
+  if (!open.length) return -1;
+  if (dir > 0){ for (const ci of open) if (ci > from) return ci; return open[0]; }
+  for (let k = open.length - 1; k >= 0; k--) if (open[k] < from) return open[k];
+  return open[open.length - 1];
+}
+function gotoQ(ci, doSeek = true){
+  curQ = ci; refresh();
+  if (ci < 0) return;
+  const c = clicks[ci], s = sugs[ci];
+  const target = spans[s ? s.a : Math.max(0, Math.min(words.length - 1, c.idx - 1))];
+  if (target) target.scrollIntoView({ block:'center', behavior:'smooth' });
+  const qi = document.querySelector(`.qi[data-c="${ci}"]`); if (qi) qi.scrollIntoView({ block:'nearest', behavior:'smooth' });
+  if (doSeek) seek(s ? words[s.a].a - 1 : c.t - 3);
+  userScrollAt = performance.now();
+}
+function listen(ci){ const c = clicks[ci], s = sugs[ci]; seek(s ? words[s.a].a - 1.5 : c.t - 4); if (!playing()) send('40044'); }
+
+document.querySelector('.side').addEventListener('click', e => {
+  const qi = e.target.closest('.qi'); if (!qi) return;
+  const ci = +qi.dataset.c, b = e.target.closest('[data-act]');
+  if (!b){ gotoQ(ci); return; }
+  if (b.dataset.act === 'listen'){ curQ = ci; refresh(); listen(ci); return; }
+  act(ci, b.dataset.act);
+});
+
+/* ================= Interaction avec le texte ================= */
+function seek(t){ const p = Math.max(0, toDst(t)); send(`SET/POS/${p.toFixed(3)}`); srv.pos = p; srv.t = performance.now(); }
+
+$('main').addEventListener('click', e => {
+  const m = e.target.closest('.mk'); if (m){ gotoQ(+m.dataset.c); return; }
+  const tm = e.target.closest('time[data-t]'); if (tm){ seek(+tm.dataset.t - 0.2); return; }
+  const sp = e.target.closest('.w');
+  if (sp && String(getSelection()).trim() === '') seek(words[+sp.dataset.i].a - 0.1);
+});
+
+function idxFromNode(node, forward){
+  const isW = x => x && x.nodeType === 1 && x.classList.contains('w');
+  if (node.nodeType === 3 && isW(node.parentElement)) return +node.parentElement.dataset.i;
+  if (isW(node)) return +node.dataset.i;
+  if (node.nodeType === 3){
+    let s = forward ? node.nextSibling : node.previousSibling;
+    while (s && !isW(s)) s = forward ? s.nextSibling : s.previousSibling;
+    if (s) return +s.dataset.i;
+  }
+  return -1;
+}
+function selectionRange(){
+  const s = getSelection();
+  if (!s.rangeCount || s.isCollapsed) return null;
+  const r = s.getRangeAt(0);
+  if (!$('main').contains(r.commonAncestorContainer)) return null;
+  let a = idxFromNode(r.startContainer, true), b = idxFromNode(r.endContainer, false);
+  if (a < 0 || b < 0){
+    const inside = [...$('main').querySelectorAll('.w')].filter(sp => s.containsNode(sp, true));
+    if (!inside.length) return null;
+    a = +inside[0].dataset.i; b = +inside[inside.length - 1].dataset.i;
+  }
+  return a <= b ? { a, b, rect:r.getBoundingClientRect() } : null;
+}
+const allStruck = r => { for (let i = r.a; i <= r.b; i++) if (!struck[i]) return false; return true; };
+function updateSelBar(){
+  const r = selectionRange(), bar = $('selbar');
+  if (!r){ bar.hidden = true; return; }
+  $('sel-cut').textContent = allStruck(r) ? 'Rétablir' : 'Barrer';
+  $('selinfo').textContent = `${r.b - r.a + 1} mot${r.b > r.a ? 's' : ''} · ${fmtD(words[r.b].b - words[r.a].a)}`;
+  bar.hidden = false;
+  const w = bar.offsetWidth;
+  const x = Math.min(innerWidth - w / 2 - 12, Math.max(w / 2 + 12, r.rect.left + r.rect.width / 2));
+  const y = r.rect.top > 70 ? r.rect.top - 10 : r.rect.bottom + bar.offsetHeight + 10;
+  bar.style.left = x + 'px'; bar.style.top = y + 'px';
+}
+document.addEventListener('selectionchange', updateSelBar);
+$('script').addEventListener('scroll', () => { if (!$('selbar').hidden) updateSelBar(); }, { passive:true });
+function toggleSelection(){
+  const r = selectionRange(); if (!r) return;
+  const all = allStruck(r);
+  snapshot(); setRange(r.a, r.b, all ? 0 : 1); changed();
+  toast(all ? `${r.b - r.a + 1} mots rétablis` : `${r.b - r.a + 1} mots barrés`);
+  getSelection().removeAllRanges(); $('selbar').hidden = true;
+}
+$('sel-cut').onmousedown = e => e.preventDefault();
+$('sel-play').onmousedown = e => e.preventDefault();
+$('sel-cut').onclick = toggleSelection;
+$('sel-play').onclick = () => { const r = selectionRange(); if (r){ seek(words[r.a].a - 0.4); if (!playing()) send('40044'); } };
+$('play').onclick = () => send('40044');
+function setListen(mode){
+  if (mode === srv.listen) return;
+  const src = toSrc(srv.pos + (playing() ? (performance.now() - srv.t) / 1000 : 0));
+  srv.listen = mode;
+  send(`SET/EXTSTATE/PODSUITE/listen/${mode}`);
+  seek(src);                                   // reste au même endroit du texte
+}
+$('l-edit').onclick = () => setListen('edit');
+$('l-raw').onclick = () => setListen('raw');
+
+/* ---- Options mémorisées ---- */
+const store = { get(k){ try { return localStorage.getItem('podsuite_' + k); } catch(e){ return null; } }, set(k, v){ try { localStorage.setItem('podsuite_' + k, v); } catch(e){} } };
+const on = id => $(id).getAttribute('aria-pressed') === 'true';
+function applyOpts(){ document.body.classList.toggle('hidecut', on('hidecut')); }
+for (const id of ['follow', 'hidecut']){
+  const b = $(id), v = store.get(id); if (v !== null) b.setAttribute('aria-pressed', v);
+  b.onclick = () => { const nv = !on(id); b.setAttribute('aria-pressed', nv); store.set(id, nv); applyOpts(); };
+}
+applyOpts();
+let fs = +(store.get('fs') || 21);
+function applyFs(){ document.documentElement.style.setProperty('--fs', fs + 'px'); store.set('fs', fs); }
+$('fsm').onclick = () => { fs = Math.max(15, fs - 2); applyFs(); };
+$('fsp').onclick = () => { fs = Math.min(36, fs + 2); applyFs(); };
+if (store.get('fs')) applyFs();
+
+/* ---- Clavier ---- */
+addEventListener('keydown', e => {
+  if (e.target.closest && e.target.closest('input,textarea')) return;
+  const mod = e.metaKey || e.ctrlKey;
+  if (mod && e.key.toLowerCase() === 'z'){ e.preventDefault(); undo(); return; }
+  if (mod || e.altKey) return;
+  if ((e.key === 'Backspace' || e.key === 'Delete') && selectionRange()){ e.preventDefault(); toggleSelection(); }
+  else if (e.code === 'Space'){ if (e.target.closest && e.target.closest('button')) return; e.preventDefault(); send('40044'); }
+  else if (e.key === 'ArrowDown' || e.key === 'j'){ e.preventDefault(); gotoQ(nextOpen(curQ, 1)); }
+  else if (e.key === 'ArrowUp' || e.key === 'k'){ e.preventDefault(); gotoQ(nextOpen(curQ < 0 ? clicks.length : curQ, -1)); }
+  else if (e.key === 'Enter' && curQ >= 0 && qState(curQ) === 'pending'){ e.preventDefault(); act(curQ, 'cut'); }
+  else if ((e.key === 'x' || e.key === 'X') && curQ >= 0 && isOpen(curQ)){ e.preventDefault(); act(curQ, 'ignore'); }
+  else if ((e.key === 'l' || e.key === 'L') && curQ >= 0){ e.preventDefault(); listen(curQ); }
+  else if (e.key === 'Escape'){ getSelection().removeAllRanges(); curQ = -1; refresh(); }
+});
+
+let userScrollAt = 0;
+for (const ev of ['wheel', 'touchmove']) $('script').addEventListener(ev, () => { userScrollAt = performance.now(); }, { passive:true });
+
+/* ================= Horloge lissée et boucle d'affichage ================= */
+const playing = () => (srv.state & 1) === 1;
+let disp = 0, lastFrame = performance.now(), cur = -1, lastJump = 0, wasPlaying = null;
+function frame(now){
+  const dt = Math.min(0.1, (now - lastFrame) / 1000); lastFrame = now;
+  const target = srv.pos + (playing() ? (now - srv.t) / 1000 : 0);
+  if (!playing()) disp = target;
+  else { disp += dt; const err = target - disp; if (Math.abs(err) > 0.15) disp = target; else disp += err * 0.08; }
+
+  $('tc').innerHTML = `${fmt(disp)}<small>.${Math.floor((disp % 1) * 10)}</small>`;
+  if (wasPlaying !== playing()){ wasPlaying = playing(); $('play').innerHTML = wasPlaying ? ICON_STOP : ICON_PLAY; }
+
+  const src = toSrc(disp);
+  const w = words.length ? wordAtTime(src) : -1;
+  if (w !== cur){
+    if (cur >= 0 && spans[cur]) spans[cur].classList.remove('now');
+    cur = w;
+    if (cur >= 0 && spans[cur]){
+      spans[cur].classList.add('now');
+      if (on('follow') && playing() && now - userScrollAt > 4000){
+        const r = spans[cur].getBoundingClientRect(), box = $('script').getBoundingClientRect();
+        const top = Math.max(box.top, 0), bottom = Math.min(box.bottom, innerHeight);
+        if (r.top < top + (bottom - top) * 0.2 || r.bottom > top + (bottom - top) * 0.7) spans[cur].scrollIntoView({ block:'center', behavior:'smooth' });
+      }
+    }
+  }
+  drawOverview(src);
+  $('l-edit').setAttribute('aria-checked', srv.listen !== 'raw'); $('l-raw').setAttribute('aria-checked', srv.listen === 'raw');
+  $('listen').classList.toggle('off', !segs.length);
+
+  const alive = now - srv.hbAt < 3000;
+  $('d-reaper').className = 'dot ' + (srv.ok ? ((srv.state & 4) ? 'rec' : 'on') : 'bad');
+  $('t-reaper').textContent = !srv.ok ? 'REAPER injoignable' : ((srv.state & 4) ? 'REAPER · enregistrement' : 'REAPER connecté');
+  $('d-srv').className = 'dot ' + (alive ? 'on' : 'bad');
+  $('t-srv').textContent = alive ? 'Modifications enregistrées' : 'Serveur arrêté';
+  const ban = $('banner');
+  const msg = !srv.ok ? "REAPER ne répond pas. Vérifiez qu'il est ouvert et que cette page est ouverte via son interface web."
+            : (!alive ? "Le script PodSuite - Serveur ne tourne pas : vos modifications ne seront pas enregistrées. Lancez-le dans REAPER." : '');
+  if (ban.textContent !== msg){ ban.textContent = msg; ban.hidden = !msg; }
+  requestAnimationFrame(frame);
+}
+
+poll();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

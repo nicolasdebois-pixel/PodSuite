@@ -1,0 +1,28 @@
+{
+  "name": "PodSuite",
+  "version": "0.3.0",
+  "author": "Nicolas Debois",
+  "description": "Transcription et dérushage de podcast dans REAPER : Whisper en local, détection du clicker, montage par le texte.",
+  "main": [
+    "PodSuite - Installer.lua",
+    "PodSuite - Serveur.lua",
+    "PodSuite - Transcrire.lua",
+    "PodSuite - Calibrer le clicker.lua",
+    "PodSuite - Reglages.lua"
+  ],
+  "files": [
+    "Scripts/PodSuite - Installer.lua",
+    "Scripts/PodSuite - Serveur.lua",
+    "Scripts/PodSuite - Transcrire.lua",
+    "Scripts/PodSuite - Calibrer le clicker.lua",
+    "Scripts/PodSuite - Reglages.lua",
+    "Scripts/PodSuite_lib.lua",
+    "www/podsuite.html"
+  ],
+  "changelog": [
+    "Installation par ReaPack, avec un assistant qui installe Whisper et le modèle",
+    "Montage réel dans REAPER : pistes « ✂ » reconstruites depuis les rushes, coupes placées dans les silences",
+    "Plus de phrases perdues après une longue pause ; minutage des mots beaucoup plus précis",
+    "Nouvelle page de dérushage : file « À traiter », vue d'ensemble de l'épisode, raccourcis clavier, annulation"
+  ]
+}

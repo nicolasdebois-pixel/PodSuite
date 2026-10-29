@@ -1,0 +1,25 @@
+# Met à jour index.xml (ReaPack) à chaque envoi sur main.
+# Pour publier une nouvelle version : augmentez « version » dans podsuite.json et décrivez-la dans « changelog ».
+name: Index ReaPack
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['index.xml']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  index:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Générer l'index
+        run: python3 tools/build_index.py --repo "$GITHUB_REPOSITORY" --commit "$GITHUB_SHA"
+      - name: Publier l'index
+        run: |
+          if [ -z "$(git status --porcelain index.xml)" ]; then echo "Index inchangé"; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.xml
+          git commit -m "Index ReaPack $(python3 -c 'import json;print(json.load(open("podsuite.json"))["version"])')"
+          git push
