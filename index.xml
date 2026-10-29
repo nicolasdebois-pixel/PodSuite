@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<index version="1" name="PodSuite" commit="3c835e5b9d3fdd6d8732f3fd0e5dd186e492484c">
+<index version="1" name="PodSuite" commit="421dca473bef55b239673f96c2589ceddeb5312e">
   <category name="PodSuite">
     <reapack name="PodSuite" type="script" desc="PodSuite">
       <version name="0.3.0" author="Nicolas Debois" time="2026-10-29T19:10:01Z">
@@ -52,6 +52,20 @@
         <source file="PodSuite - Reglages.lua" hash="122068169440a63d5fb18ac2fd77d7b6f7054e258b7b02878d2cfb524c21da0a69ee" main="main">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/3c835e5b9d3fdd6d8732f3fd0e5dd186e492484c/Scripts/PodSuite%20-%20Reglages.lua</source>
         <source file="PodSuite_lib.lua" hash="12202d50706fd82ca60be6d7f2c8d1b54b4bb718b14b312945044e95a04ecec6a658">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/3c835e5b9d3fdd6d8732f3fd0e5dd186e492484c/Scripts/PodSuite_lib.lua</source>
         <source file="podsuite.html" hash="1220d04ec5f1e16efb870b2f6265ac2825b040f93d490930c0f10b3abbd9b9042274">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/3c835e5b9d3fdd6d8732f3fd0e5dd186e492484c/www/podsuite.html</source>
+      </version>
+      <version name="0.4.0" author="Nicolas Debois" time="2026-10-29T20:26:31Z">
+        <changelog>• Tout ce qui a été dit apparaît : Whisper garde les reprises et les hésitations, et un passage qu'il n'a pas su écrire s'affiche « parole non transcrite » au lieu de disparaître
+• Nouvelles suggestions « Répétition » quand une phrase est redite sans clicker — à valider, rien n'est coupé sans votre accord
+• Coupes plus précises : on n'entend plus la fin du mot barré (la coupe tombe juste avant le mot suivant)
+• File « À traiter » dans l'ordre du temps
+• Taille de l'interface plus raisonnable à 100 % de zoom</changelog>
+        <source file="PodSuite - Installer.lua" hash="12207630ce748e3211d8c4c10ee692bcc3db3b8b2da2a681fd1461a310e1b58d26a7" main="main">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/421dca473bef55b239673f96c2589ceddeb5312e/Scripts/PodSuite%20-%20Installer.lua</source>
+        <source file="PodSuite - Serveur.lua" hash="1220e5adc385958372fca1dcc53c71b77b33fafc2d31822bb594a45e8930d81ae094" main="main">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/421dca473bef55b239673f96c2589ceddeb5312e/Scripts/PodSuite%20-%20Serveur.lua</source>
+        <source file="PodSuite - Transcrire.lua" hash="1220e4902d77876bbf83f3704434adaa17eb3fec011ad2d9cf7400eeeb95606ec5c8" main="main">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/421dca473bef55b239673f96c2589ceddeb5312e/Scripts/PodSuite%20-%20Transcrire.lua</source>
+        <source file="PodSuite - Calibrer le clicker.lua" hash="12208330dcb0867bbee42f379618764bc608bc7a36715293ce72d226bee892cbcdd7" main="main">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/421dca473bef55b239673f96c2589ceddeb5312e/Scripts/PodSuite%20-%20Calibrer%20le%20clicker.lua</source>
+        <source file="PodSuite - Reglages.lua" hash="122068169440a63d5fb18ac2fd77d7b6f7054e258b7b02878d2cfb524c21da0a69ee" main="main">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/421dca473bef55b239673f96c2589ceddeb5312e/Scripts/PodSuite%20-%20Reglages.lua</source>
+        <source file="PodSuite_lib.lua" hash="1220c2ec6f01afeeb50deed01ea06504689a80c00b26e02d283efa4ef4a7200a183e">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/421dca473bef55b239673f96c2589ceddeb5312e/Scripts/PodSuite_lib.lua</source>
+        <source file="podsuite.html" hash="1220b67b33a6cc4a7fa374438636bec4756123f75e903192ea27b81b772ffc057f54">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/421dca473bef55b239673f96c2589ceddeb5312e/www/podsuite.html</source>
       </version>
       <metadata>
         <description>{\rtf1\ansi\deff0{\fonttbl{\f0 \fswiss Helvetica;}}\f0\fs22 Transcription et d\u233?rushage de podcast dans REAPER : Whisper en local, d\u233?tection du clicker, montage par le texte.\par}</description>
