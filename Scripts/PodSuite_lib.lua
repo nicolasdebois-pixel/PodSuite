@@ -2,7 +2,7 @@
 -- (ne pas lancer directement : chargé par les autres scripts)
 
 local P = {}
-P.VERSION = "0.3.1"
+P.VERSION = "0.3.2"
 P.SECTION = "PODSUITE"
 P.WIN = reaper.GetOS():find("Win") ~= nil
 P.SEP = P.WIN and "\\" or "/"
@@ -281,12 +281,15 @@ local LOOK = 24        -- retard d'évaluation : 24 ms
 local RING = 32768
 local TPL_PRE, TPL_LEN = 32, 192
 
-function P.click_detector(t0, template, sens)
+function P.click_detector(t0, template, sens, gap)
   local D = {
     t0 = t0, n = 0, prev = 0, acc = 0, cnt = 0, k = 0,
     h = {}, E = {}, P = {}, hits = {}, last = -1e9,
     tpl = template, thr = 0.85 - 0.5 * (sens / 100),
   }
+  -- tic-tac très serré (< 30 ms) : on vérifie la retombée après le second son
+  local skip = (gap and gap > 0 and gap < 0.03) and math.floor(gap * 1000 + 0.5) or 0
+  local LOOKD = LOOK + skip
   local R1 = 20                        -- montée d'au moins 13 dB au-dessus du fond
   local DEC = 6                        -- retombée de 8 dB en moins de 10 ms
   local FLOOR = FR * 2e-5
@@ -319,7 +322,7 @@ function P.click_detector(t0, template, sens)
     bg = bg / 39 + 1e-9
     if ec < bg * R1 then return end
     local tail = 0
-    for j = c + 10, c + LOOK - 2 do local e = E[j % 256] or 0; if e > tail then tail = e end end
+    for j = c + 10 + skip, c + LOOKD - 2 do local e = E[j % 256] or 0; if e > tail then tail = e end end
     if tail > ec / DEC then return end
     local peak = D.P[c % 256]
     if (peak - D.last) < 0.03 * P.SR then return end
@@ -343,7 +346,7 @@ function P.click_detector(t0, template, sens)
       if cnt == FR then
         E[k % 256] = acc; Pk[k % 256] = pidx
         D.k = k; D.n = idx
-        evaluate(k - LOOK)
+        evaluate(k - LOOKD)
         k = k + 1; acc = 0; cnt = 0; pmax = 0
       end
     end
@@ -355,8 +358,9 @@ end
 -- Regroupe les transitoires : appui + relâchement = 1 clic ; clics rapprochés = un code (1, 2, 3)
 function P.group_clicks(hits, gap)
   local events = {}
-  local win = gap > 0 and math.max(0.08, gap * 1.5 + 0.04) or 0.08
-  local maxtr = gap > 0 and 2 or 1
+  -- un clic de clicker = 2 sons (« tic-tac ») : deux transitoires rapprochés comptent pour UN clic
+  local win = math.max(0.08, gap * 1.5 + 0.04)
+  local maxtr = 2
   for _, t in ipairs(hits) do
     local e = events[#events]
     if e and e.n < maxtr and t - e.t <= win then e.n = e.n + 1; e.e = t
@@ -399,7 +403,7 @@ function P.template_from(s)
   for i = 1, TPL_LEN do tpl[i] = tpl[i] / en end
   -- relâchement : second transitoire net, 40 à 600 ms plus tard
   local gap = 0
-  local f0, f1 = bf + 40, math.min(nf - 1, bf + 600)
+  local f0, f1 = bf + 8, math.min(nf - 1, bf + 600)
   local b2, g2 = 0, nil
   for f = f0, f1 do if E[f] > b2 then b2 = E[f]; g2 = f end end
   if g2 and b2 > best * 0.04 then gap = (g2 - bf) / 1000 end

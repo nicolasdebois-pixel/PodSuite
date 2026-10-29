@@ -67,7 +67,7 @@ local DTW_BIAS = 0.20                    -- retard moyen mesuré des minutages D
 local readers = {}
 for i, tr in ipairs(tracks) do readers[i] = P.track_reader(tr) end
 local tpl = P.template_load()
-local detector = tpl and P.click_detector(t0, tpl, tonumber(P.get("click_sens")) or 50)
+local detector = tpl and P.click_detector(t0, tpl, tonumber(P.get("click_sens")) or 50, tonumber(P.get("click_gap")) or 0)
 local energy = {}
 for i = 1, #tracks do energy[i] = {} end
 local BLOCK = P.SR
@@ -143,7 +143,8 @@ function plan()
       local j = f
       while j <= nF and db[j] <= thr do j = j + 1 end
       if (j - f) * 0.01 > MAXGAP then
-        local a = (f == 1) and 1 or f + math.floor(PAD * 100)
+        -- on garde plus de marge après la dernière phrase : les fins de phrase sont souvent plus douces
+        local a = (f == 1) and 1 or f + math.floor(((j > nF) and 0.8 or PAD) * 100)
         local b = (j > nF) and nF or j - math.floor(PAD * 100) - 1
         for k = a, b do keep[k] = false end
       end
@@ -186,6 +187,10 @@ function write_pass()
       cleanup_readers(); wav.f:close(); ui.close(); return
     end
     if mi <= #map then reaper.defer(step) return end
+    -- 1,5 s de silence à la fin : sans cela, Whisper laisse parfois tomber les derniers mots
+    local z = {}
+    for i = 1, math.floor(1.5 * P.SR) do z[i] = 0 end
+    P.wav_write(wav, z, #z)
     cleanup_readers(); P.wav_close(wav)
     start_whisper(true)
   end

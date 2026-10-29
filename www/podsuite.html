@@ -81,6 +81,8 @@ kbd{font:600 0.6875rem var(--mono);padding:1px 0.3125rem;border-radius:0.25rem;b
 .w.focus{background:var(--cut-strong)}
 .w.x{color:var(--struck);text-decoration:line-through 2px var(--cut)}
 .hidecut .w.x{display:none}
+.txt{user-select:none;-webkit-user-select:none}
+.w.sel{background:color-mix(in srgb,var(--accent) 34%,transparent);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 34%,transparent)}
 .w.now{background:var(--now);box-shadow:0 0 0 3px var(--now)}
 .mk{display:inline-grid;place-items:center;min-width:1.35em;height:1.35em;padding:0 .3em;margin:0 .2em;border-radius:62.4375rem;vertical-align:.12em;font:700 calc(var(--fs) * .55) var(--ui);color:#fff;background:var(--cut);cursor:pointer;user-select:none}
 .mk.n2{background:var(--warn)}
@@ -213,7 +215,7 @@ kbd{font:600 0.6875rem var(--mono);padding:1px 0.3125rem;border-radius:0.25rem;b
         <span><kbd>Entrée</kbd></span><span>Couper la suggestion</span>
         <span><kbd>X</kbd></span><span>Ignorer</span>
         <span><kbd>L</kbd></span><span>Écouter autour du clic</span>
-        <span><kbd>⌫</kbd></span><span>Barrer / rétablir la sélection</span>
+        <span><kbd>⌫</kbd></span><span>Barrer / rétablir les mots sélectionnés (clic, glisser, Maj+clic)</span>
         <span><kbd>⌘Z</kbd></span><span>Annuler</span>
       </div>
     </section>
@@ -382,7 +384,7 @@ const MARK = { 1:'✕', 2:'!', 3:'✕3' };
 
 /* ================= Rendu de la transcription ================= */
 function render(){
-  const main = $('main'); main.textContent = ''; spans = [];
+  const main = $('main'); main.textContent = ''; spans = []; sel = null; anchor = -1; $('selbar').hidden = true;
   if (!D || D.empty || !words.length){
     main.innerHTML = `<div class="empty"><h2>Pas encore de transcription</h2>
       <p>Dans REAPER, sélectionnez les items des intervenants (un par piste), puis lancez <b>PodSuite - Transcrire</b>.
@@ -614,36 +616,56 @@ document.querySelector('.side').addEventListener('click', e => {
 /* ================= Interaction avec le texte ================= */
 function seek(t){ const p = Math.max(0, toDst(t)); send(`SET/POS/${p.toFixed(3)}`); srv.pos = p; srv.t = performance.now(); }
 
+/* ---- Sélection de mots : clic = un mot, glisser = plusieurs, Maj+clic = étendre ---- */
+let sel = null, anchor = -1, dragging = false, dragMoved = false;
+function setSel(a, b){
+  if (a > b) [a, b] = [b, a];
+  if (sel) for (let i = sel.a; i <= sel.b; i++) spans[i] && spans[i].classList.remove('sel');
+  sel = a < 0 ? null : { a, b };
+  if (sel) for (let i = sel.a; i <= sel.b; i++) spans[i].classList.add('sel');
+  updateSelBar();
+}
+function clearSel(){ setSel(-1, -1); anchor = -1; }
+$('main').addEventListener('mousedown', e => {
+  if (e.button !== 0) return;
+  const sp = e.target.closest('.w');
+  if (!sp) return;
+  e.preventDefault();
+  const i = +sp.dataset.i;
+  if (e.shiftKey && anchor >= 0) setSel(anchor, i);
+  else { anchor = i; setSel(i, i); }
+  dragging = true; dragMoved = false;
+});
+$('main').addEventListener('mouseover', e => {
+  if (!dragging) return;
+  const sp = e.target.closest('.w'); if (!sp) return;
+  dragMoved = true; setSel(anchor, +sp.dataset.i);
+});
+addEventListener('mouseup', e => {
+  if (!dragging) return;
+  dragging = false;
+  if (!dragMoved && !e.shiftKey && sel && sel.a === sel.b) seek(words[sel.a].a - 0.1);   // un simple clic place aussi la lecture
+});
+// toucher (tablette) : un appui sélectionne le mot
+$('main').addEventListener('touchend', e => {
+  const sp = e.target.closest('.w'); if (!sp) return;
+  e.preventDefault(); const i = +sp.dataset.i;
+  if (sel && anchor >= 0 && sel.a === sel.b && sel.a !== i) setSel(anchor, i); else { anchor = i; setSel(i, i); seek(words[i].a - 0.1); }
+});
+document.addEventListener('mousedown', e => {
+  if (!e.target.closest('.w') && !e.target.closest('#selbar') && !e.target.closest('.sel')) clearSel();
+});
 $('main').addEventListener('click', e => {
   const m = e.target.closest('.mk'); if (m){ gotoQ(+m.dataset.c); return; }
   const tm = e.target.closest('time[data-t]'); if (tm){ seek(+tm.dataset.t - 0.2); return; }
-  const sp = e.target.closest('.w');
-  if (sp && String(getSelection()).trim() === '') seek(words[+sp.dataset.i].a - 0.1);
 });
 
-function idxFromNode(node, forward){
-  const isW = x => x && x.nodeType === 1 && x.classList.contains('w');
-  if (node.nodeType === 3 && isW(node.parentElement)) return +node.parentElement.dataset.i;
-  if (isW(node)) return +node.dataset.i;
-  if (node.nodeType === 3){
-    let s = forward ? node.nextSibling : node.previousSibling;
-    while (s && !isW(s)) s = forward ? s.nextSibling : s.previousSibling;
-    if (s) return +s.dataset.i;
-  }
-  return -1;
-}
 function selectionRange(){
-  const s = getSelection();
-  if (!s.rangeCount || s.isCollapsed) return null;
-  const r = s.getRangeAt(0);
-  if (!$('main').contains(r.commonAncestorContainer)) return null;
-  let a = idxFromNode(r.startContainer, true), b = idxFromNode(r.endContainer, false);
-  if (a < 0 || b < 0){
-    const inside = [...$('main').querySelectorAll('.w')].filter(sp => s.containsNode(sp, true));
-    if (!inside.length) return null;
-    a = +inside[0].dataset.i; b = +inside[inside.length - 1].dataset.i;
-  }
-  return a <= b ? { a, b, rect:r.getBoundingClientRect() } : null;
+  if (!sel || !spans[sel.a]) return null;
+  const r1 = spans[sel.a].getBoundingClientRect(), r2 = spans[sel.b].getBoundingClientRect();
+  const sameLine = Math.abs(r1.top - r2.top) < 4;
+  const rect = sameLine ? { left:r1.left, width:r2.right - r1.left, top:r1.top, bottom:r2.bottom } : { left:r1.left, width:r1.width, top:r1.top, bottom:r1.bottom };
+  return { a:sel.a, b:sel.b, rect };
 }
 const allStruck = r => { for (let i = r.a; i <= r.b; i++) if (!struck[i]) return false; return true; };
 function updateSelBar(){
@@ -652,22 +674,22 @@ function updateSelBar(){
   $('sel-cut').textContent = allStruck(r) ? 'Rétablir' : 'Barrer';
   $('selinfo').textContent = `${r.b - r.a + 1} mot${r.b > r.a ? 's' : ''} · ${fmtD(words[r.b].b - words[r.a].a)}`;
   bar.hidden = false;
+  const box = $('script').getBoundingClientRect();
+  if (r.rect.bottom < box.top || r.rect.top > box.bottom){ bar.hidden = true; return; }
   const w = bar.offsetWidth;
   const x = Math.min(innerWidth - w / 2 - 12, Math.max(w / 2 + 12, r.rect.left + r.rect.width / 2));
-  const y = r.rect.top > 70 ? r.rect.top - 10 : r.rect.bottom + bar.offsetHeight + 10;
+  const y = r.rect.top - 10 > box.top + bar.offsetHeight ? r.rect.top - 10 : r.rect.bottom + bar.offsetHeight + 10;
   bar.style.left = x + 'px'; bar.style.top = y + 'px';
 }
-document.addEventListener('selectionchange', updateSelBar);
-$('script').addEventListener('scroll', () => { if (!$('selbar').hidden) updateSelBar(); }, { passive:true });
+$('script').addEventListener('scroll', () => { if (sel) updateSelBar(); }, { passive:true });
 function toggleSelection(){
   const r = selectionRange(); if (!r) return;
   const all = allStruck(r);
   snapshot(); setRange(r.a, r.b, all ? 0 : 1); changed();
-  toast(all ? `${r.b - r.a + 1} mots rétablis` : `${r.b - r.a + 1} mots barrés`);
-  getSelection().removeAllRanges(); $('selbar').hidden = true;
+  const n = r.b - r.a + 1;
+  toast(all ? `${n} mot${n > 1 ? 's' : ''} rétabli${n > 1 ? 's' : ''}` : `${n} mot${n > 1 ? 's' : ''} barré${n > 1 ? 's' : ''}`);
+  clearSel();
 }
-$('sel-cut').onmousedown = e => e.preventDefault();
-$('sel-play').onmousedown = e => e.preventDefault();
 $('sel-cut').onclick = toggleSelection;
 $('sel-play').onclick = () => { const r = selectionRange(); if (r){ seek(words[r.a].a - 0.4); if (!playing()) send('40044'); } };
 $('play').onclick = () => send('40044');
@@ -709,7 +731,7 @@ addEventListener('keydown', e => {
   else if (e.key === 'Enter' && curQ >= 0 && qState(curQ) === 'pending'){ e.preventDefault(); act(curQ, 'cut'); }
   else if ((e.key === 'x' || e.key === 'X') && curQ >= 0 && isOpen(curQ)){ e.preventDefault(); act(curQ, 'ignore'); }
   else if ((e.key === 'l' || e.key === 'L') && curQ >= 0){ e.preventDefault(); listen(curQ); }
-  else if (e.key === 'Escape'){ getSelection().removeAllRanges(); curQ = -1; refresh(); }
+  else if (e.key === 'Escape'){ clearSel(); curQ = -1; refresh(); }
 });
 
 let userScrollAt = 0;
