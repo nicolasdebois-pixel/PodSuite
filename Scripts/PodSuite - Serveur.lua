@@ -41,7 +41,9 @@ local function montage_tracks_exist()
   return false
 end
 
-local function load_project()
+-- republish = true seulement au changement de projet : une nouvelle version venue d'ailleurs
+-- (fin de transcription) est simplement relue, sinon deux serveurs se relanceraient sans fin.
+local function load_project(republish)
   local _, fn, ddir = P.project()
   cur_fn = fn
   if fn then
@@ -54,13 +56,13 @@ local function load_project()
   if data then
     for _, c in ipairs(data.clicks or {}) do c.idx = first_word_at(c.t) end
     decode_env()
-    P.publish(data, nil)
+    if republish then P.publish(data, nil) end
     local has = false
     for _ in pairs((data.edits or {}).strikes or {}) do has = true; break end
     pending_build = has or montage_tracks_exist()
     if not pending_build then P.write_file(P.www_dir() .. P.SEP .. "podsuite_map.json", "{\"segs\":[]}"); reaper.SetExtState(P.SECTION, "mapver", tostring(os.clock()), false) end
   else
-    P.publish({ format = 2, empty = true, project = fn and fn:match("([^/\\]+)$") or "" }, nil)
+    if republish then P.publish({ format = 2, empty = true, project = fn and fn:match("([^/\\]+)$") or "" }, nil) end
   end
   last_ver = reaper.GetExtState(P.SECTION, "version")
   last_rev = reaper.GetExtState(P.SECTION, "edits_rev")
@@ -269,11 +271,14 @@ local function save_now()
   P.write_file(P.www_data(), js)
 end
 
+local ME = tostring(reaper.time_precise()) .. "-" .. tostring(math.random(1, 1e9))
 local function loop()
+  -- un seul serveur à la fois : le dernier lancé prend la main, l'ancien s'arrête
+  if reaper.GetExtState(P.SECTION, "server") ~= ME then return end
   local _, fn = reaper.EnumProjects(-1)
-  if fn ~= cur_fn then load_project() end
+  if fn ~= cur_fn then load_project(true) end
   local ver = reaper.GetExtState(P.SECTION, "version")
-  if ver ~= last_ver then load_project() end
+  if ver ~= last_ver then load_project(false) end
 
   local now = reaper.time_precise()
   local rev = reaper.GetExtState(P.SECTION, "edits_rev")
@@ -311,5 +316,6 @@ reaper.atexit(function()
 end)
 
 P.install_page()
-load_project()
+reaper.SetExtState(P.SECTION, "server", ME, false)
+load_project(true)
 loop()

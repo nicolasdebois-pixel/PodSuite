@@ -2,7 +2,7 @@
 -- (ne pas lancer directement : chargé par les autres scripts)
 
 local P = {}
-P.VERSION = "0.3.2"
+P.VERSION = "0.3.3"
 P.SECTION = "PODSUITE"
 P.WIN = reaper.GetOS():find("Win") ~= nil
 P.SEP = P.WIN and "\\" or "/"
@@ -274,61 +274,78 @@ function P.wav_close(w)
 end
 
 ---------------------------------------------------------------- Détecteur de clics (clicker)
--- Travaille en flux sur le signal 16 kHz. Un clic = transitoire bref, aigu, qui retombe vite,
--- confirmé (si calibré) par corrélation avec l'empreinte enregistrée.
+-- Travaille en flux sur le signal 16 kHz. On relève tous les transitoires brefs (montée nette, retombée rapide),
+-- puis on ne garde que ceux qui ressemblent au clicker calibré :
+--   • même « couleur » spectrale (profil d'énergie par bandes de fréquences) ;
+--   • et, pour un clicker « tic-tac », le second son au bon écart. C'est ce qui écarte les consonnes.
 local FR = 16          -- trame d'énergie : 1 ms
 local LOOK = 24        -- retard d'évaluation : 24 ms
 local RING = 32768
 local TPL_PRE, TPL_LEN = 32, 192
+local NB = 20
+local BANDS = {}
+for i = 1, NB do BANDS[i] = 1200 * (7600 / 1200) ^ ((i - 1) / (NB - 1)) end   -- 1,2 à 7,6 kHz
+local HANN = {}
+for i = 1, TPL_LEN do HANN[i] = 0.5 - 0.5 * math.cos(2 * math.pi * (i - 1) / (TPL_LEN - 1)) end
+
+-- profil spectral (log-énergie par bande) d'une fenêtre de TPL_LEN échantillons
+local function profile(get)
+  local x = {}
+  for i = 1, TPL_LEN do x[i] = (get(i) or 0) * HANN[i] end
+  local pr = {}
+  for k = 1, NB do
+    local w = 2 * math.pi * BANDS[k] / P.SR
+    local re, im = 0, 0
+    for i = 1, TPL_LEN do re = re + x[i] * math.cos(w * i); im = im + x[i] * math.sin(w * i) end
+    pr[k] = math.log(re * re + im * im + 1e-12)
+  end
+  return pr
+end
+local function corr(a, b)
+  local ma, mb = 0, 0
+  for i = 1, NB do ma = ma + a[i]; mb = mb + b[i] end
+  ma, mb = ma / NB, mb / NB
+  local num, da, db = 0, 0, 0
+  for i = 1, NB do local u, v = a[i] - ma, b[i] - mb; num = num + u * v; da = da + u * u; db = db + v * v end
+  return num / math.sqrt(da * db + 1e-12)
+end
 
 function P.click_detector(t0, template, sens, gap)
   local D = {
     t0 = t0, n = 0, prev = 0, acc = 0, cnt = 0, k = 0,
-    h = {}, E = {}, P = {}, hits = {}, last = -1e9,
-    tpl = template, thr = 0.85 - 0.5 * (sens / 100),
+    h = {}, E = {}, P = {}, cands = {}, last = -1e9,
+    tprof = profile(function(i) return template[i] end),
   }
-  -- tic-tac très serré (< 30 ms) : on vérifie la retombée après le second son
   local skip = (gap and gap > 0 and gap < 0.03) and math.floor(gap * 1000 + 0.5) or 0
   local LOOKD = LOOK + skip
   local R1 = 20                        -- montée d'au moins 13 dB au-dessus du fond
   local DEC = 6                        -- retombée de 8 dB en moins de 10 ms
   local FLOOR = FR * 2e-5
 
-  local function ncc(peak)
-    local tpl, h = D.tpl, D.h
-    local best = 0
-    for lag = -24, 24 do
-      local base = peak - TPL_PRE + lag
-      local dot, en = 0, 0
-      for i = 1, TPL_LEN do
-        local x = h[(base + i - 1) % RING] or 0
-        dot = dot + x * tpl[i]; en = en + x * x
-      end
-      if en > 0 then
-        local c = math.abs(dot) / math.sqrt(en)
-        if c > best then best = c end
-      end
-    end
-    return best
-  end
-
   local function evaluate(c)
     local E = D.E
     local ec = E[c % 256]
     if not ec or ec < FLOOR or c < 48 then return end
     for j = c - 3, c + 3 do if j ~= c and (E[j % 256] or 0) > ec then return end end
-    local bg = 0
-    for j = c - 44, c - 6 do bg = bg + (E[j % 256] or 0) end
-    bg = bg / 39 + 1e-9
+    -- fond : la plus calme de trois tranches avant le transitoire (un « tic » juste avant ne fausse rien)
+    local bg = math.huge
+    for _, w in ipairs({ { 44, 32 }, { 31, 19 }, { 18, 6 } }) do
+      local sum = 0
+      for j = c - w[1], c - w[2] do sum = sum + (E[j % 256] or 0) end
+      sum = sum / (w[1] - w[2] + 1)
+      if sum < bg then bg = sum end
+    end
+    bg = bg + 1e-9
     if ec < bg * R1 then return end
     local tail = 0
     for j = c + 10 + skip, c + LOOKD - 2 do local e = E[j % 256] or 0; if e > tail then tail = e end end
     if tail > ec / DEC then return end
     local peak = D.P[c % 256]
-    if (peak - D.last) < 0.03 * P.SR then return end
-    if ncc(peak) < D.thr then return end
+    if (peak - D.last) < 0.012 * P.SR then return end
     D.last = peak
-    D.hits[#D.hits + 1] = D.t0 + peak / P.SR
+    local h, base = D.h, peak - TPL_PRE
+    local sim = corr(profile(function(i) return h[(base + i - 1) % RING] end), D.tprof)
+    D.cands[#D.cands + 1] = { t = D.t0 + peak / P.SR, sim = sim, rise = 10 * math.log(ec / bg, 10) }
   end
 
   function D.push(s, n)
@@ -355,16 +372,31 @@ function P.click_detector(t0, template, sens, gap)
   return D
 end
 
--- Regroupe les transitoires : appui + relâchement = 1 clic ; clics rapprochés = un code (1, 2, 3)
-function P.group_clicks(hits, gap)
-  local events = {}
-  -- un clic de clicker = 2 sons (« tic-tac ») : deux transitoires rapprochés comptent pour UN clic
-  local win = math.max(0.08, gap * 1.5 + 0.04)
-  local maxtr = 2
-  for _, t in ipairs(hits) do
-    local e = events[#events]
-    if e and e.n < maxtr and t - e.t <= win then e.n = e.n + 1; e.e = t
-    else events[#events + 1] = { t = t, e = t, n = 1 } end
+-- Transforme les transitoires candidats en clics, puis en codes (1, 2 ou 3 clics rapprochés)
+function P.click_events(D, gap, sens)
+  local ts = 0.92 - 0.3 * (sens / 100)          -- ressemblance spectrale exigée (0,77 à sensibilité 50)
+  local C, used, events = D.cands, {}, {}
+  if gap >= 0.03 then
+    -- clicker tic-tac : un « tic » ressemblant, suivi du « tac » au bon écart
+    for i, a in ipairs(C) do
+      if not used[i] and a.sim >= ts and a.rise >= 25 then
+        for j = i + 1, #C do
+          local b = C[j]
+          local dt = b.t - a.t
+          if dt > gap + 0.03 then break end
+          if not used[j] and math.abs(dt - gap) <= 0.025 then        -- le « tac » sonne différemment : seul l'écart compte
+            used[i], used[j] = true, true
+            events[#events + 1] = { t = a.t, e = b.t }
+            break
+          end
+        end
+      end
+    end
+  else
+    -- clicker à un seul son : ressemblance plus stricte et son net
+    for _, a in ipairs(C) do
+      if a.sim >= ts + 0.05 and a.rise >= 22 then events[#events + 1] = { t = a.t, e = a.t } end
+    end
   end
   local codes = {}
   for _, ev in ipairs(events) do

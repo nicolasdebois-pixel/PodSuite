@@ -56,10 +56,12 @@ end
 
 ---------------------------------------------------------------- Étape 1 : analyse audio
 -- Passe 1 : énergie par piste (trames de 10 ms) + détection des clics.
--- Passe 2 : écriture du fichier pour Whisper, SANS les longs silences (Whisper perd des phrases
---           et dérive dans ses minutages après un long silence). Une carte permet de revenir au temps réel.
-local wavpath = datadir .. P.SEP .. "whisper_input.wav"
-local outbase = datadir .. P.SEP .. "whisper"
+-- Passe 2 : écriture des fichiers pour Whisper, SANS les longs silences (Whisper perd des phrases
+--           et dérive dans ses minutages après un long silence), et COUPÉS À CHAQUE CLIC : d'un seul
+--           tenant, Whisper « nettoie » les reprises et efface la phrase redite après le clic.
+--           Une carte par morceau permet de revenir au temps réel.
+local function chunk_wav(k) return datadir .. P.SEP .. string.format("whisper_input_%02d.wav", k) end
+local function chunk_base(k) return datadir .. P.SEP .. string.format("whisper_%02d", k) end
 local logpath = datadir .. P.SEP .. "whisper.log"
 local MAXGAP, PAD = 1.0, 0.25            -- silences > 1 s raccourcis, 0,25 s gardés de chaque côté
 local DTW_BIAS = 0.20                    -- retard moyen mesuré des minutages DTW
@@ -76,7 +78,7 @@ local nF = math.ceil(total / 160)
 local gain = 1 / math.sqrt(#tracks)
 local ui = P.progress("PodSuite — Transcription")
 local done = 0
-local clicks, map, envstr = {}, {}, ""
+local clicks, chunks, envstr = {}, {}, ""
 local db, thr = {}, -60
 local start_whisper, wait_whisper, finish, plan, write_pass
 local function cleanup_readers() for _, r in ipairs(readers) do r.close() end end
@@ -114,7 +116,7 @@ end
 
 local ENV_ALPHA = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
 function plan()
-  clicks = detector and P.group_clicks(detector.hits, tonumber(P.get("click_gap")) or 0) or {}
+  clicks = detector and P.click_events(detector, tonumber(P.get("click_gap")) or 0, tonumber(P.get("click_sens")) or 50) or {}
   local env = {}
   for f = 1, nF do
     local e = 0
@@ -126,9 +128,11 @@ function plan()
     env[f] = ENV_ALPHA:sub(lv + 1, lv + 1)
   end
   envstr = table.concat(env)
-  -- les clics ne comptent pas comme de la parole
+  -- les clics ne comptent pas comme de la parole, et chaque clic sépare deux morceaux
+  local boundary = {}
   for _, c in ipairs(clicks) do
-    for f = math.max(1, math.floor((c.t - 0.03 - t0) * 100) + 1), math.min(nF, math.floor((c.e + 0.03 - t0) * 100) + 1) do db[f] = -120 end
+    local f0, f1 = math.max(1, math.floor((c.t - 0.03 - t0) * 100) + 1), math.min(nF, math.floor((c.e + 0.03 - t0) * 100) + 1)
+    for f = f0, f1 do db[f] = -120; boundary[f] = true end
   end
   local sorted = {}
   for f = 1, nF do sorted[f] = db[f] end
@@ -151,47 +155,62 @@ function plan()
       f = j
     else f = f + 1 end
   end
-  local dst = 0
+  for k in pairs(boundary) do keep[k] = false end
+  -- morceaux : suites de zones gardées, un nouveau morceau après chaque clic
+  local cur, dst, cut = nil, 0, true
   f = 1
   while f <= nF do
+    if boundary[f] then cut = true end
     if keep[f] then
       local j = f
       while j <= nF and keep[j] do j = j + 1 end
-      map[#map + 1] = { src = t0 + (f - 1) * 0.01, dst = dst * 0.01, len = (j - f) * 0.01 }
-      dst = dst + (j - f); f = j
+      if cut or not cur then cur = { segs = {}, len = 0 }; chunks[#chunks + 1] = cur; dst = 0; cut = false end
+      cur.segs[#cur.segs + 1] = { src = t0 + (f - 1) * 0.01, dst = dst * 0.01, len = (j - f) * 0.01 }
+      dst = dst + (j - f); cur.len = dst * 0.01; f = j
     else f = f + 1 end
   end
-  if #map == 0 then map[1] = { src = t0, dst = 0, len = t1 - t0 } end
+  -- un morceau trop court (entre deux clics d'un même code) ne contient pas de parole
+  local kept = {}
+  for _, c in ipairs(chunks) do if c.len >= 0.4 then kept[#kept + 1] = c end end
+  chunks = kept
+  if #chunks == 0 then chunks[1] = { segs = { { src = t0, dst = 0, len = t1 - t0 } }, len = t1 - t0 } end
   write_pass()
 end
 
 function write_pass()
-  local wav = P.wav_open(wavpath)
-  if not wav then cleanup_readers(); ui.close(); reaper.MB("Impossible d'écrire dans " .. datadir, "PodSuite", 0) return end
-  local mi, off, kept = 1, 0, 0
-  for _, m in ipairs(map) do kept = kept + m.len end
-  local written = 0
+  local ci, si, off, wav, written, kept = 1, 1, 0, nil, 0, 0
+  for _, c in ipairs(chunks) do kept = kept + c.len end
   local function step()
     local deadline = reaper.time_precise() + 0.05
-    while mi <= #map and reaper.time_precise() < deadline do
-      local m = map[mi]
+    while ci <= #chunks and reaper.time_precise() < deadline do
+      local c = chunks[ci]
+      if not wav then
+        wav = P.wav_open(chunk_wav(ci))
+        if not wav then cleanup_readers(); ui.close(); reaper.MB("Impossible d'écrire dans " .. datadir, "PodSuite", 0) return end
+      end
+      local m = c.segs[si]
       local nTot = math.floor(m.len * P.SR + 0.5)
       local n = math.min(BLOCK, nTot - off)
       if n > 0 then
         P.wav_write(wav, read_mix(m.src + off / P.SR, n, false), n)
         off = off + n; written = written + n
       end
-      if off >= nTot then mi = mi + 1; off = 0 end
+      if off >= nTot then
+        si = si + 1; off = 0
+        if si > #c.segs then
+          -- 1,5 s de silence à la fin : sans cela, Whisper laisse parfois tomber les derniers mots
+          local z = {}
+          for i = 1, math.floor(1.5 * P.SR) do z[i] = 0 end
+          P.wav_write(wav, z, #z); P.wav_close(wav); wav = nil
+          ci = ci + 1; si = 1
+        end
+      end
     end
     if not ui.draw(0.15 + 0.1 * written / math.max(1, kept * P.SR), "Préparation pour Whisper…") then
-      cleanup_readers(); wav.f:close(); ui.close(); return
+      cleanup_readers(); if wav then wav.f:close() end; ui.close(); return
     end
-    if mi <= #map then reaper.defer(step) return end
-    -- 1,5 s de silence à la fin : sans cela, Whisper laisse parfois tomber les derniers mots
-    local z = {}
-    for i = 1, math.floor(1.5 * P.SR) do z[i] = 0 end
-    P.wav_write(wav, z, #z)
-    cleanup_readers(); P.wav_close(wav)
+    if ci <= #chunks then reaper.defer(step) return end
+    cleanup_readers()
     start_whisper(true)
   end
   step()
@@ -210,12 +229,14 @@ end
 local started, use_dtw
 
 function start_whisper(try_dtw)
-  os.remove(outbase .. ".json"); os.remove(logpath)
+  os.remove(logpath)
   use_dtw = try_dtw and dtw_preset(P.get("model")) or nil
-  local args = {
-    q(P.get("whisper")), "-m", q(P.get("model")), "-f", q(wavpath),
-    "-l", P.get("lang"), "-t", P.get("threads"), "-ojf", "-of", q(outbase), "-pp",
-  }
+  local args = { q(P.get("whisper")), "-m", q(P.get("model")), "-l", P.get("lang"), "-t", P.get("threads"), "-ojf", "-pp" }
+  for k = 1, #chunks do
+    os.remove(chunk_base(k) .. ".json")
+    args[#args + 1] = "-f"; args[#args + 1] = q(chunk_wav(k))
+    args[#args + 1] = "-of"; args[#args + 1] = q(chunk_base(k))
+  end
   if use_dtw then args[#args + 1] = "-dtw"; args[#args + 1] = use_dtw; args[#args + 1] = "-nfa" end
   local prompt = P.get("prompt"):gsub('"', "")
   if prompt ~= "" then args[#args + 1] = "--prompt"; args[#args + 1] = q(prompt) end
@@ -232,15 +253,19 @@ function wait_whisper()
   local log = P.read_file(logpath) or ""
   local pct = 0
   for v in log:gmatch("progress =%s*(%d+)%%") do pct = tonumber(v) end
+  local nd = 0
+  for _ in log:gmatch("output_json: saving") do nd = nd + 1 end
+  if nd >= #chunks then pct = 100 end
+  local frac = math.min(1, (nd + (nd < #chunks and pct / 100 or 0)) / #chunks)
   local now = reaper.time_precise()
   if #log ~= last_size then last_size = #log; last_change = now end
   local elapsed = math.floor(now - started)
-  local line = string.format("Transcription Whisper… %d %%   (%d min %02d s)", pct, elapsed // 60, elapsed % 60)
-  if not ui.draw(0.25 + 0.72 * pct / 100, line) then ui.close(); return end
+  local line = string.format("Transcription Whisper… %d %%   (%d min %02d s)", math.floor(frac * 100), elapsed // 60, elapsed % 60)
+  if not ui.draw(0.25 + 0.72 * frac, line) then ui.close(); return end
 
-  if log:find("total time") and P.exists(outbase .. ".json") then finish() return end
+  if log:find("total time") and P.exists(chunk_base(#chunks) .. ".json") then finish() return end
   local failed = log:find("error:") or log:find("failed to") or log:find("not recognized") or log:find("No such file")
-  if (failed and now - last_change > 3) or (now - last_change > 30 and #log == 0 and not P.exists(outbase .. ".json")) or now - last_change > 300 then
+  if (failed and now - last_change > 3) or (now - last_change > 30 and #log == 0) or now - last_change > 300 then
     if use_dtw then last_size = -1; start_whisper(false) return end   -- nouvel essai sans DTW
     ui.close()
     local tail = log:sub(-900)
@@ -251,7 +276,7 @@ function wait_whisper()
 end
 
 ---------------------------------------------------------------- Étape 3 : assemblage
-local function to_src(t)
+local function to_src(map, t)
   local lo, hi = 1, #map
   while lo < hi do local m = (lo + hi + 1) // 2; if map[m].dst <= t then lo = m else hi = m - 1 end end
   local m = map[lo]
@@ -275,11 +300,12 @@ local function noise_word(w) return w:match("^%[.*%]$") or w:match("^%(.*%)$") o
 
 function finish()
   ui.draw(0.98, "Assemblage de la transcription…")
-  local ok, res = pcall(P.json_decode, P.read_file(outbase .. ".json") or "")
-  if not ok or type(res) ~= "table" or type(res.transcription) ~= "table" then
-    ui.close(); reaper.MB("Le fichier produit par Whisper est illisible.\n" .. tostring(res), "PodSuite", 0); return
-  end
   local raw = {}
+  for k, chunk in ipairs(chunks) do
+  local ok, res = pcall(P.json_decode, P.read_file(chunk_base(k) .. ".json") or "")
+  if not ok or type(res) ~= "table" or type(res.transcription) ~= "table" then
+    ui.close(); reaper.MB("Le fichier produit par Whisper est illisible (morceau " .. k .. ").\n" .. tostring(res), "PodSuite", 0); return
+  end
   for _, seg in ipairs(res.transcription) do
     local so = seg.offsets or {}
     local cur = nil
@@ -292,14 +318,20 @@ function finish()
         else ts = (to.from or so.from or 0) / 1000 end
         local te = (to.to or so.to or 0) / 1000
         if tx:sub(1, 1) == " " or not cur then
-          cur = { w = tx:match("^%s*(.-)$"), a = ts, b = te }
-          raw[#raw + 1] = cur
-        else
-          cur.w = cur.w .. tx; cur.b = te
+          -- un mot qui commence dans le silence ajouté en fin de morceau est une invention de Whisper (« Merci. »)
+          if ts >= chunk.len - 0.05 then cur = { skip = true }
+          else
+            cur = { w = tx:match("^%s*(.-)$"), a = to_src(chunk.segs, math.max(0, ts)), b = to_src(chunk.segs, math.max(0, te)) }
+            raw[#raw + 1] = cur
+          end
+        elseif not cur.skip then
+          cur.w = cur.w .. tx; cur.b = to_src(chunk.segs, math.max(0, te))
         end
       end
     end
   end
+  end
+  table.sort(raw, function(x, y) return x.a < y.a end)
   local words = {}
   for _, r in ipairs(raw) do
     local w = r.w:match("^%s*(.-)%s*$")
@@ -312,10 +344,7 @@ function finish()
       words[#words + 1] = { w = w, a = r.a, b = r.b }
     end
   end
-  -- retour au temps réel du projet, minutages cohérents
-  for i, w in ipairs(words) do
-    w.a = to_src(math.max(0, w.a)); w.b = to_src(math.max(0, w.b))
-  end
+  -- minutages cohérents
   for i, w in ipairs(words) do
     if i > 1 and w.a < words[i - 1].a + 0.02 then w.a = words[i - 1].a + 0.02 end
   end
