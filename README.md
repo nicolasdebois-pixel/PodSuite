@@ -38,7 +38,7 @@ Les mises à jour arrivent ensuite toutes seules par ReaPack (*Extensions › Re
 
 1. Enregistrez le projet REAPER.
 2. Lancez **PodSuite - Serveur** et laissez-le tourner.
-3. Une fois : **PodSuite - Calibrer le clicker** (sélection temporelle autour d'un clic).
+3. Une fois : placez le curseur juste avant un clic dans vos rushes, sélectionnez la piste, puis **PodSuite - Calibrer le clicker**.
 4. Sélectionnez les items des intervenants, un par piste, puis **PodSuite - Transcrire**.
 5. Ouvrez la page de dérushage, à l'adresse indiquée à la fin de la transcription.
 

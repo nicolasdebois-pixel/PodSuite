@@ -1,6 +1,6 @@
 {
   "name": "PodSuite",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "author": "Nicolas Debois",
   "description": "Transcription et dérushage de podcast dans REAPER : Whisper en local, détection du clicker, montage par le texte.",
   "main": [
@@ -20,9 +20,8 @@
     "www/podsuite.html"
   ],
   "changelog": [
-    "Installation par ReaPack, avec un assistant qui installe Whisper et le modèle",
-    "Montage réel dans REAPER : pistes « ✂ » reconstruites depuis les rushes, coupes placées dans les silences",
-    "Plus de phrases perdues après une longue pause ; minutage des mots beaucoup plus précis",
-    "Nouvelle page de dérushage : file « À traiter », vue d'ensemble de l'épisode, raccourcis clavier, annulation"
+    "Page de dérushage bien plus grande : elle s'adapte à la taille de l'écran, et A− / A+ agrandissent toute l'interface",
+    "Calibration du clicker simplifiée : placez le curseur juste avant un clic, plus besoin de sélection temporelle",
+    "La page explique comment calibrer le clicker quand ce n'est pas encore fait"
   ]
 }

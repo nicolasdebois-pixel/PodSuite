@@ -2,7 +2,7 @@
 -- (ne pas lancer directement : chargé par les autres scripts)
 
 local P = {}
-P.VERSION = "0.3.0"
+P.VERSION = "0.3.1"
 P.SECTION = "PODSUITE"
 P.WIN = reaper.GetOS():find("Win") ~= nil
 P.SEP = P.WIN and "\\" or "/"
@@ -405,7 +405,7 @@ function P.template_from(s)
   if g2 and b2 > best * 0.04 then gap = (g2 - bf) / 1000 end
   local parts = {}
   for i = 1, TPL_LEN do parts[i] = string.format("%.5f", tpl[i]) end
-  return table.concat(parts, ","), gap
+  return table.concat(parts, ","), gap, peak
 end
 
 ---------------------------------------------------------------- Fenêtre de progression
