@@ -228,18 +228,27 @@ local function dtw_preset(path)
 end
 local started, use_dtw
 
+-- Whisper est lancé par lots de 20 morceaux (une ligne de commande Windows est limitée en longueur)
+local BATCH = 20
+local batch = 1
+-- Une amorce pleine d'hésitations pousse Whisper à tout écrire tel quel (reprises, « euh »…)
+-- au lieu de « nettoyer » ce qui a été dit.
+local VERBATIM = "Euh, alors, je... je veux dire, euh, voilà. Bon, ben, du coup, hum..."
+local function batch_range(b) return (b - 1) * BATCH + 1, math.min(b * BATCH, #chunks) end
+
 function start_whisper(try_dtw)
   os.remove(logpath)
   use_dtw = try_dtw and dtw_preset(P.get("model")) or nil
   local args = { q(P.get("whisper")), "-m", q(P.get("model")), "-l", P.get("lang"), "-t", P.get("threads"), "-ojf", "-pp" }
-  for k = 1, #chunks do
+  local k0, k1 = batch_range(batch)
+  for k = k0, k1 do
     os.remove(chunk_base(k) .. ".json")
     args[#args + 1] = "-f"; args[#args + 1] = q(chunk_wav(k))
     args[#args + 1] = "-of"; args[#args + 1] = q(chunk_base(k))
   end
   if use_dtw then args[#args + 1] = "-dtw"; args[#args + 1] = use_dtw; args[#args + 1] = "-nfa" end
-  local prompt = P.get("prompt"):gsub('"', "")
-  if prompt ~= "" then args[#args + 1] = "--prompt"; args[#args + 1] = q(prompt) end
+  local prompt = (VERBATIM .. " " .. P.get("prompt")):gsub('"', ""):gsub("'", "’")
+  args[#args + 1] = "--prompt"; args[#args + 1] = q(prompt)
   local cmd = table.concat(args, " ") .. " > " .. q(logpath) .. " 2>&1"
   if P.WIN then cmd = 'cmd.exe /C "' .. cmd .. '"'
   else cmd = "/bin/sh -c '" .. cmd:gsub("'", "'\\''") .. "'" end
@@ -253,17 +262,20 @@ function wait_whisper()
   local log = P.read_file(logpath) or ""
   local pct = 0
   for v in log:gmatch("progress =%s*(%d+)%%") do pct = tonumber(v) end
-  local nd = 0
+  local k0, k1 = batch_range(batch)
+  local nd = k0 - 1
   for _ in log:gmatch("output_json: saving") do nd = nd + 1 end
-  if nd >= #chunks then pct = 100 end
-  local frac = math.min(1, (nd + (nd < #chunks and pct / 100 or 0)) / #chunks)
+  local frac = math.min(1, (nd + (nd < k1 and pct / 100 or 0)) / #chunks)
   local now = reaper.time_precise()
   if #log ~= last_size then last_size = #log; last_change = now end
   local elapsed = math.floor(now - started)
   local line = string.format("Transcription Whisper… %d %%   (%d min %02d s)", math.floor(frac * 100), elapsed // 60, elapsed % 60)
   if not ui.draw(0.25 + 0.72 * frac, line) then ui.close(); return end
 
-  if log:find("total time") and P.exists(chunk_base(#chunks) .. ".json") then finish() return end
+  if log:find("total time") and P.exists(chunk_base(k1) .. ".json") then
+    if k1 < #chunks then batch = batch + 1; last_size = -1; start_whisper(use_dtw ~= nil) return end
+    finish() return
+  end
   local failed = log:find("error:") or log:find("failed to") or log:find("not recognized") or log:find("No such file")
   if (failed and now - last_change > 3) or (now - last_change > 30 and #log == 0) or now - last_change > 300 then
     if use_dtw then last_size = -1; start_whisper(false) return end   -- nouvel essai sans DTW
@@ -364,6 +376,29 @@ function finish()
     w.a = math.floor(w.a * 1000 + 0.5) / 1000; w.b = math.floor(w.b * 1000 + 0.5) / 1000
     w.s = speaker_of(w.a, w.b)
   end
+
+  -- On entend quelqu'un parler mais Whisper n'a rien écrit : on le montre quand même (« … »),
+  -- pour que la page affiche TOUT ce qui a été dit et que rien ne disparaisse sans votre accord.
+  local covered = {}
+  for _, w in ipairs(words) do for f = frame(w.a), frame(w.b) do covered[f] = true end end
+  local holes = {}
+  local f = 1
+  while f <= nF do
+    if db[f] > thr and not covered[f] then
+      local j, quiet, speech = f, 0, 1
+      while j + 1 <= nF and not covered[j + 1] and (db[j + 1] > thr or quiet < 20) do
+        j = j + 1
+        if db[j] > thr then quiet = 0; if db[j] > thr + 6 then speech = speech + 1 end else quiet = quiet + 1 end
+      end
+      local e = j - quiet
+      if speech >= 35 then holes[#holes + 1] = { a = t0 + (f - 1) * 0.01, b = t0 + e * 0.01 } end
+      f = j + 1
+    else f = f + 1 end
+  end
+  for _, h in ipairs(holes) do
+    words[#words + 1] = { w = "…", a = math.floor(h.a * 1000 + 0.5) / 1000, b = math.floor(h.b * 1000 + 0.5) / 1000, gap = true, s = speaker_of(h.a, h.b) }
+  end
+  table.sort(words, function(x, y) return x.a < y.a end)
 
   local data = {
     format = 2, project = projname, created = os.date("%Y-%m-%d %H:%M"),

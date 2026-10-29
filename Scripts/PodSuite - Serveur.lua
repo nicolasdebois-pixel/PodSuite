@@ -19,11 +19,17 @@ local ENV_ALPHA = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz012345678
 local ENV_LV = {}
 for i = 1, #ENV_ALPHA do ENV_LV[ENV_ALPHA:sub(i, i)] = i - 1 end
 
+local qlevel = 20                 -- niveau (1,25 dB par pas) sous lequel on considère qu'il y a une pause
 local function decode_env()
   env = {}
   local s = data and data.env or ""
   for i = 1, #s do env[i] = ENV_LV[s:sub(i, i)] or 0 end
   envstart = data and (data.envstart or data.start) or 0
+  local sorted = {}
+  for i = 1, #env do sorted[i] = env[i] end
+  table.sort(sorted)
+  local floor = sorted[math.max(1, math.floor(#sorted * 0.1))] or 0
+  qlevel = floor + 8                -- ≈ 10 dB au-dessus du bruit de fond
 end
 
 local function first_word_at(t)
@@ -100,6 +106,33 @@ local function quietest(a, b)
   return bestMid
 end
 
+-- Dernière pause (≥ 50 ms sous le seuil) entre a et b : renvoie début, fin — ou nil.
+-- La DERNIÈRE, parce qu'elle précède directement le mot suivant (les silences internes d'un mot,
+-- comme la tenue d'un « p » ou d'un « t », sont plus courts ou plus tôt).
+local function last_pause(a, b)
+  if #env == 0 or b <= a then return nil end
+  local f0 = math.max(2, math.floor((a - envstart) * 100) + 1)
+  local f1 = math.min(#env - 1, math.floor((b - envstart) * 100) + 1)
+  local best, f = nil, f0
+  while f <= f1 do
+    if env[f] <= qlevel then
+      local j = f
+      while j + 1 <= f1 and env[j + 1] <= qlevel do j = j + 1 end
+      if j - f + 1 >= 5 then best = { envstart + (f - 1) * 0.01, envstart + j * 0.01 } end
+      f = j + 1
+    else f = f + 1 end
+  end
+  return best
+end
+
+-- Point de coupe juste AVANT le mot qui commence vers « est » :
+-- dans la pause qui le précède s'il y en a une, sinon au point le plus calme tout près de l'estimation.
+local function cut_before(est, lo)
+  local p = last_pause(math.max(lo, est - 0.6), est + 0.08)
+  if p then return math.max(p[1], p[2] - 0.02) end
+  return quietest(math.max(lo, est - 0.04), est + 0.04)
+end
+
 local function compute_cuts()
   local w, cuts = data.words, {}
   local st = {}
@@ -111,22 +144,17 @@ local function compute_cuts()
     if st[i] then
       local j = i
       while j + 1 <= #w and st[j + 1] do j = j + 1 end
+      -- de juste avant le premier mot barré jusqu'à juste avant le mot gardé suivant :
+      -- la pause qui précédait le passage est conservée, celle qui le suivait disparaît avec lui
       local sa, eb
       if i == 1 then sa = data.start
-      else
-        local lo = math.max(w[i - 1].a + 0.06, math.min(w[i - 1].b, w[i].a) - 0.08)
-        sa = quietest(lo, w[i].a + 0.10)
-      end
-      local endFrom = w[j].b
+      else sa = cut_before(w[i].a, w[i - 1].a + 0.06) end
+      local endFrom = w[j].a + 0.06
       for _, c in ipairs(data.clicks or {}) do
         if c.n ~= 2 and c.idx == j + 1 then endFrom = math.max(endFrom, c.e) end
       end
       if j == #w then eb = data.stop
-      else
-        local hi = math.min(w[j + 1].b - 0.06, w[j + 1].a + 0.08)
-        eb = quietest(math.max(w[j].a + 0.06, endFrom - 0.10), math.max(hi, endFrom + 0.02))
-        if eb < endFrom - 0.1 then eb = endFrom end
-      end
+      else eb = math.max(cut_before(w[j + 1].a, endFrom), endFrom) end
       if eb > sa + 0.02 then cuts[#cuts + 1] = { sa, eb } end
       i = j + 1
     else i = i + 1 end

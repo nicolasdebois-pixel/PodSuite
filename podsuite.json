@@ -1,6 +1,6 @@
 {
   "name": "PodSuite",
-  "version": "0.3.3",
+  "version": "0.4.0",
   "author": "Nicolas Debois",
   "description": "Transcription et dérushage de podcast dans REAPER : Whisper en local, détection du clicker, montage par le texte.",
   "main": [
@@ -20,10 +20,10 @@
     "www/podsuite.html"
   ],
   "changelog": [
-    "Page de dérushage : elle ne se recharge plus en boucle (les clics sur les mots et les boutons fonctionnent)",
-    "Un seul serveur à la fois : relancer « PodSuite - Serveur » arrête l'ancien",
-    "Les reprises après un clic ne sont plus effacées par Whisper (transcription découpée à chaque clic)",
-    "Détection du clicker beaucoup plus fiable : elle reconnaît le « tic-tac » et ignore les consonnes",
-    "Plus de « Merci. » inventé à la fin de la transcription"
+    "Tout ce qui a été dit apparaît : Whisper garde les reprises et les hésitations, et un passage qu'il n'a pas su écrire s'affiche « parole non transcrite » au lieu de disparaître",
+    "Nouvelles suggestions « Répétition » quand une phrase est redite sans clicker — à valider, rien n'est coupé sans votre accord",
+    "Coupes plus précises : on n'entend plus la fin du mot barré (la coupe tombe juste avant le mot suivant)",
+    "File « À traiter » dans l'ordre du temps",
+    "Taille de l'interface plus raisonnable à 100 % de zoom"
   ]
 }

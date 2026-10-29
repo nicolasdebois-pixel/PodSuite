@@ -28,7 +28,7 @@
 }}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
-html{font-size:calc(var(--ui-scale,1) * clamp(16px, 1.08vw, 44px))}
+html{font-size:calc(var(--ui-scale,1) * clamp(15px, calc(0.5vw + 6px), 30px))}
 html,body{margin:0;height:100%}
 body{background:var(--bg);color:var(--ink);font:0.9375rem/1.45 var(--ui);display:flex;flex-direction:column;overflow:hidden}
 button{font:inherit;color:inherit;cursor:pointer;background:none;border:0;padding:0}
@@ -83,6 +83,8 @@ kbd{font:600 0.6875rem var(--mono);padding:1px 0.3125rem;border-radius:0.25rem;b
 .hidecut .w.x{display:none}
 .txt{user-select:none;-webkit-user-select:none}
 .w.sel{background:color-mix(in srgb,var(--accent) 34%,transparent);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 34%,transparent)}
+.w.gap{font:600 .72em var(--ui);letter-spacing:.02em;color:var(--warn);padding:.15em .55em;margin-right:.3em;border:1.5px dashed currentColor;border-radius:999px;vertical-align:.12em}
+.w.gap.x{text-decoration:line-through 2px var(--cut);color:var(--struck)}
 .w.now{background:var(--now);box-shadow:0 0 0 3px var(--now)}
 .mk{display:inline-grid;place-items:center;min-width:1.35em;height:1.35em;padding:0 .3em;margin:0 .2em;border-radius:62.4375rem;vertical-align:.12em;font:700 calc(var(--fs) * .55) var(--ui);color:#fff;background:var(--cut);cursor:pointer;user-select:none}
 .mk.n2{background:var(--warn)}
@@ -211,10 +213,10 @@ kbd{font:600 0.6875rem var(--mono);padding:1px 0.3125rem;border-radius:0.25rem;b
       <h2 class="lbl">Raccourcis</h2>
       <div class="keys">
         <span><kbd>Espace</kbd></span><span>Lecture / arrêt</span>
-        <span><kbd>↓</kbd> <kbd>↑</kbd></span><span>Clic suivant / précédent</span>
+        <span><kbd>↓</kbd> <kbd>↑</kbd></span><span>Suggestion suivante / précédente</span>
         <span><kbd>Entrée</kbd></span><span>Couper la suggestion</span>
         <span><kbd>X</kbd></span><span>Ignorer</span>
-        <span><kbd>L</kbd></span><span>Écouter autour du clic</span>
+        <span><kbd>L</kbd></span><span>Écouter autour de la suggestion</span>
         <span><kbd>⌫</kbd></span><span>Barrer / rétablir les mots sélectionnés (clic, glisser, Maj+clic)</span>
         <span><kbd>⌘Z</kbd></span><span>Annuler</span>
       </div>
@@ -295,7 +297,7 @@ async function loadData(){
     D = JSON.parse(await r.text());
   } catch(e){ D = null; }
   words = (D && D.words) || [];
-  clicks = (D && D.clicks) || [];
+  clicks = [...((D && D.clicks) || [])];
   struck = new Uint8Array(words.length);
   ignored = new Set(); undoStack.length = 0;
   if (D && D.edits){
@@ -304,6 +306,7 @@ async function loadData(){
   }
   for (const c of clicks) c.idx = firstWordAt(c.t);
   computeSuggestions();
+  findRepeats();
   curQ = -1;
   render();
 }
@@ -354,6 +357,35 @@ function computeSuggestions(){
     if (start >= lo0 && start <= idx - 1) sugs[ci] = { a:start, b:idx - 1 };
   });
 }
+/* ---- Répétitions sans clicker : simples suggestions, rien n'est coupé sans validation ---- */
+function findRepeats(){
+  const n = words.map(w => w.gap ? '' : norm(w.w));
+  const taken = new Uint8Array(words.length);
+  sugs.forEach(s => { if (s) for (let i = s.a; i <= s.b; i++) taken[i] = 1; });
+  const clickAt = new Set(clicks.map(c => c.idx));
+  let i = 0;
+  while (i < words.length - 1){
+    let found = null;
+    if (n[i] && !taken[i]){
+      for (let j = i + 1; j <= Math.min(words.length - 1, i + 12) && !found; j++){
+        if (clickAt.has(j)) break;                       // un clic sépare déjà les deux prises
+        let k = 0;
+        while (j + k < words.length && i + k < j && n[i + k] && n[i + k] === n[j + k]) k++;
+        const imm = (j - i === k);                        // répétition immédiate (« je je », « du podcast du podcast »)
+        if ((k >= 3) || (k === 2 && j - i <= 4) || (k === 1 && imm && n[i].length >= 2)){
+          let ok = true; for (let q = i; q < j; q++) if (taken[q]) ok = false;
+          if (ok) found = { a:i, b:j - 1 };
+        }
+      }
+    }
+    if (found){
+      clicks.push({ t:words[found.b + 1] ? words[found.b + 1].a : words[found.b].b, e:0, n:4, idx:found.b + 1, syn:true });
+      sugs.push(found);
+      for (let q = found.a; q <= found.b; q++) taken[q] = 1;
+      i = found.b + 1;
+    } else i++;
+  }
+}
 // pending | done | ignored | review | seen
 function qState(ci){
   if (clicks[ci].n === 2) return ignored.has(ci) ? 'seen' : 'review';
@@ -379,8 +411,8 @@ function spkColor(i){
   return c;
 }
 const spkName = i => { const s = D.speakers[i - 1]; return (s && s.name) || `Intervenant ${i}`; };
-const TYPES = { 1:'Prise ratée', 2:'À réécouter', 3:'Paragraphe à jeter' };
-const MARK = { 1:'✕', 2:'!', 3:'✕3' };
+const TYPES = { 1:'Prise ratée', 2:'À réécouter', 3:'Paragraphe à jeter', 4:'Répétition' };
+const MARK = { 1:'✕', 2:'!', 3:'✕3', 4:'↻' };
 
 /* ================= Rendu de la transcription ================= */
 function render(){
@@ -413,6 +445,7 @@ function render(){
     if (!para || w.s !== lastS || (i > 0 && w.a - words[i - 1].b > 2.0) || (count > 110 && endsSentence(words[i - 1].w))) newPara(i);
     if (byIdx.has(i)) for (const ci of byIdx.get(i)){ txt.appendChild(mk(ci)); txt.appendChild(document.createTextNode(' ')); }
     const sp = document.createElement('span'); sp.className = 'w'; sp.dataset.i = i; sp.textContent = w.w + ' ';
+    if (w.gap){ sp.classList.add('gap'); sp.textContent = `parole non transcrite · ${(w.b - w.a).toFixed(1).replace('.', ',')} s`; sp.title = "On entend quelqu'un parler ici, mais Whisper n'a rien écrit. Écoutez, et barrez si besoin."; }
     txt.appendChild(sp);
     spans[i] = sp; count++;
   }
@@ -466,7 +499,7 @@ function renderSide(){
   $('spks').innerHTML = D && D.speakers && words.length ? D.speakers.map((s, i) => `<span style="--c:${spkColor(i + 1)}"><i></i>${esc(spkName(i + 1))}</span>`).join('') + `<span>${words.length} mots</span>` : '';
 
   const open = [], closed = [];
-  clicks.forEach((c, ci) => (isOpen(ci) ? open : closed).push(ci));
+  byTime().forEach(ci => (isOpen(ci) ? open : closed).push(ci));
   $('qcount').textContent = open.length; $('qcount').classList.toggle('zero', !open.length);
   const q = $('queue'); q.textContent = '';
   if (!open.length) q.innerHTML = `<div class="qempty">${clicks.length ? 'Tout est traité.' : (D && D.calibrated === false ? `<b>Le clicker n'est pas encore calibré.</b><ol class="howto"><li>Dans REAPER, placez le curseur juste avant un clic dans vos rushes.</li><li>Sélectionnez cette piste et lancez <b>PodSuite - Calibrer le clicker</b>.</li><li>Relancez <b>PodSuite - Transcrire</b>.</li></ol>` : 'Aucun clic détecté.')}</div>`;
@@ -490,7 +523,7 @@ function buildCuts(){
     if (!struck[i]) continue;
     let j = i; while (j + 1 < words.length && struck[j + 1]) j++;
     let a = words[i].a, b = words[j].b;
-    for (const c of clicks) if (c.idx === j + 1 && c.n !== 2) b = Math.max(b, c.e);
+    for (const c of clicks) if (c.idx === j + 1 && c.n !== 2 && !c.syn) b = Math.max(b, c.e);
     if (j + 1 < words.length) b = Math.min(Math.max(b, words[j].b), words[j + 1].a);
     cuts.push({ a, b }); i = j;
   }
@@ -586,11 +619,13 @@ $('acceptall').onclick = () => {
 };
 
 /* ================= Navigation dans la file ================= */
+function byTime(){ return clicks.map((c, ci) => ci).sort((x, y) => clicks[x].t - clicks[y].t); }
 function nextOpen(from, dir){
-  const open = clicks.map((c, ci) => ci).filter(isOpen);
+  const open = byTime().filter(isOpen);
   if (!open.length) return -1;
-  if (dir > 0){ for (const ci of open) if (ci > from) return ci; return open[0]; }
-  for (let k = open.length - 1; k >= 0; k--) if (open[k] < from) return open[k];
+  const t = from >= 0 && from < clicks.length ? clicks[from].t : (dir > 0 ? -Infinity : Infinity);
+  if (dir > 0){ for (const ci of open) if (clicks[ci].t > t) return ci; return open[0]; }
+  for (let k = open.length - 1; k >= 0; k--) if (clicks[open[k]].t < t) return open[k];
   return open[open.length - 1];
 }
 function gotoQ(ci, doSeek = true){
@@ -727,7 +762,7 @@ addEventListener('keydown', e => {
   if ((e.key === 'Backspace' || e.key === 'Delete') && selectionRange()){ e.preventDefault(); toggleSelection(); }
   else if (e.code === 'Space'){ if (e.target.closest && e.target.closest('button')) return; e.preventDefault(); send('40044'); }
   else if (e.key === 'ArrowDown' || e.key === 'j'){ e.preventDefault(); gotoQ(nextOpen(curQ, 1)); }
-  else if (e.key === 'ArrowUp' || e.key === 'k'){ e.preventDefault(); gotoQ(nextOpen(curQ < 0 ? clicks.length : curQ, -1)); }
+  else if (e.key === 'ArrowUp' || e.key === 'k'){ e.preventDefault(); gotoQ(nextOpen(curQ, -1)); }
   else if (e.key === 'Enter' && curQ >= 0 && qState(curQ) === 'pending'){ e.preventDefault(); act(curQ, 'cut'); }
   else if ((e.key === 'x' || e.key === 'X') && curQ >= 0 && isOpen(curQ)){ e.preventDefault(); act(curQ, 'ignore'); }
   else if ((e.key === 'l' || e.key === 'L') && curQ >= 0){ e.preventDefault(); listen(curQ); }
