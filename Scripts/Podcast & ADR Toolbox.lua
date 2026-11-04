@@ -727,15 +727,26 @@ local function page_export(x, y, w)
   if not Lm then y = header(x, y, w, "Export", "Outil introuvable : mettez la boîte à outils à jour (ReaPack › Synchronize packages)."); return y end
   local S, UI, NORMS = Lm.S, Lm.UI, Lm.NORMS
   text("Export", x, y, COL.text, 3)
-  text("Mesure le mix du master tel qu'il sera exporté, avant d'exporter.", x, y + 30, COL.muted, 2)
+  text(usage() == "adr" and "Mesure le mix du master (film doublé) avant de l'exporter, selon la norme du diffuseur."
+    or "Mesure le mix du master tel qu'il sera exporté, avant d'exporter.", x, y + 30, COL.muted, 2)
   y = y + 60
-  local bw = (w - 12) / 2
-  for i, N in ipairs(NORMS) do
-    if button(N.name, x + (i - 1) * (bw + 12), y, bw, 30, false, S.norm == i) and not UI.busy then S.norm = i; Lm.save() end
+  -- normes proposées selon ce que l'on fait (podcast, doublage, les deux)
+  local vis = {}
+  for i, N in ipairs(NORMS) do if usage() == "both" or N.use == usage() then vis[#vis + 1] = i end end
+  local okn = false
+  for _, i in ipairs(vis) do if i == S.norm then okn = true end end
+  if not okn then S.norm = vis[1]; Lm.save() end
+  local per = math.min(#vis, 3)
+  local bw = (w - (per - 1) * 10) / per
+  for k, i in ipairs(vis) do
+    local col_, row = (k - 1) % per, (k - 1) // per
+    if button(NORMS[i].name, x + col_ * (bw + 10), y + row * 38, bw, 30, false, S.norm == i) and not UI.busy then S.norm = i; Lm.save() end
   end
+  y = y + ((#vis - 1) // per) * 38
   local N = NORMS[S.norm]
   y = y + 36
-  text(string.format("Norme : %s LUFS intégrés (± %s LU) · true peak max %s dBTP", Lm.num(N.target, 0), Lm.num(N.tol, 0), Lm.num(N.tp, 0)), x, y, COL.muted, 2)
+  local dd = (N.tol % 1 ~= 0) and 1 or 0
+  text(string.format("Norme : %s LUFS intégrés (± %s LU) · true peak max %s dBTP", Lm.num(N.target, 0), Lm.num(N.tol, dd), Lm.num(N.tp, 0)), x, y, COL.muted, 2)
   y = y + 26
   if expert() then
     local w2, c1 = chip("Tout le projet", x, y, nil, S.scope == "all"); if c1 and not UI.busy then S.scope = "all"; Lm.save() end
@@ -754,7 +765,7 @@ local function page_export(x, y, w)
   if m then
     local okL, okT = Lm.verdict(m, N)
     local tw = (w - 24) / 3
-    tile(x, y, tw, 76, "Loudness intégrée", Lm.num(m.lufs) .. " LUFS", string.format("visé : %s à %s", Lm.num(N.target - N.tol, 0), Lm.num(N.target + N.tol, 0)), okL)
+    tile(x, y, tw, 76, "Loudness intégrée", Lm.num(m.lufs) .. " LUFS", string.format("visé : %s à %s", Lm.num(N.target - N.tol, dd), Lm.num(N.target + N.tol, dd)), okL)
     tile(x + tw + 12, y, tw, 76, m.tp_src == "sample" and "Crête (échantillon)" or "True peak", Lm.sgn(m.tp) .. (m.tp_src == "sample" and " dBFS" or " dBTP"),
       m.tp_src == "sample" and ("max : " .. Lm.num(N.tp - 1, 0) .. " dBFS") or ("max : " .. Lm.num(N.tp, 0) .. " dBTP"), okT)
     tile(x + 2 * (tw + 12), y, tw, 76, "Écart de volume (LRA)", m.lra and (Lm.num(m.lra) .. " LU") or "—", "bas = voix régulière", m.lra and (m.lra <= Lm.LRA_HIGH) or nil)
@@ -782,14 +793,16 @@ local function page_export(x, y, w)
     y = y + 22
   end
   y = y + 8
-  if button("Exporter pour " .. (S.norm == 2 and "Spotify" or "les plateformes de podcast"), x, y, 300, 36, allok, false) then
+  if button("Exporter : " .. N.name, x, y, 340, 36, allok, false) then
     -- réglages de rendu prêts : tout le projet, 44,1 kHz, nom du fichier ; le format (MP3, WAV…) reste au choix
     reaper.GetSetProjectInfo(0, "RENDER_SETTINGS", 0, true)
     reaper.GetSetProjectInfo(0, "RENDER_BOUNDSFLAG", 1, true)
-    reaper.GetSetProjectInfo(0, "RENDER_SRATE", 44100, true)
-    reaper.GetSetProjectInfo_String(0, "RENDER_PATTERN", "$project - " .. (S.norm == 2 and "Spotify" or "Podcast"), true)
+    reaper.GetSetProjectInfo(0, "RENDER_SRATE", N.srate or 48000, true)
+    reaper.GetSetProjectInfo_String(0, "RENDER_PATTERN", "$project - " .. (N.short or "export"), true)
     reaper.Main_OnCommand(40015, 0)
-    msg = "Fenêtre d'export ouverte : choisissez le format (MP3 192 kbps ou WAV) et ne cochez pas de normalisation — le niveau est déjà réglé."
+    msg = N.use == "adr"
+      and "Fenêtre d'export ouverte (48 kHz) : choisissez WAV 24 bits et ne cochez pas de normalisation — le niveau est déjà réglé. Pour livrer les voix seules à un mixeur, utilisez plutôt « Exporter une piste par personnage » (page Enregistrement), sans traitement de niveau."
+      or "Fenêtre d'export ouverte : choisissez le format (MP3 192 kbps ou WAV) et ne cochez pas de normalisation — le niveau est déjà réglé."
   end
   return y + 50
 end
@@ -1123,7 +1136,8 @@ local HELP = {
     "Chaque traitement a trois intensités. Commencez en Moyen, écoutez au casque, puis ajustez : si la voix devient étouffée ou creuse, c'est trop fort.",
     "« Bypass » compare avec le son d'origine. Les courbes dessinées sur les items montrent ce qui a été fait." } },
   export = { "Export", {
-    "LUFS : le volume perçu, mesuré sur tout le fichier. Podcast : −16 LUFS ; Spotify : −14 LUFS (± 1).",
+    "LUFS : le volume perçu, mesuré sur tout le fichier. Podcast : −16 LUFS ; Spotify : −14 LUFS (± 1). Doublage : télévision −23 LUFS (EBU R128, ± 0,5), Netflix −27 LUFS sur les dialogues (± 2, true peak −2 dBTP), web −14 LUFS.",
+    "Les normes proposées dépendent du choix « Je fais du podcast / du doublage / les deux » dans l'Accueil.",
     "True peak : la crête réelle du son, entre les échantillons. Elle ne doit pas dépasser −1 dBTP, sinon le son sature après compression MP3.",
     "« Corriger automatiquement » ajoute un limiteur en fin de chaîne du master et règle le gain. Si le limiteur doit trop travailler, régularisez d'abord la voix." } },
   lines = { "Répliques", {

@@ -10,9 +10,14 @@ local SECTION = "PODSUITE_LOUDNESS"
 local SEP = package.config:sub(1, 1)
 local scriptdir = (debug.getinfo(1, "S").source:match("^@(.*[/\\])")) or ""
 
+-- use : « podcast » ou « adr » (la fenêtre principale n'affiche que les normes utiles) ; short : nom du fichier exporté
 local NORMS = {
-  { name = "Podcast (Apple, autres)", target = -16, tol = 1, tp = -1 },
-  { name = "Podcast (Spotify)", target = -14, tol = 1, tp = -1 },
+  { name = "Podcast (Apple, autres)", short = "Podcast", target = -16, tol = 1, tp = -1, srate = 44100, use = "podcast" },
+  { name = "Podcast (Spotify)", short = "Spotify", target = -14, tol = 1, tp = -1, srate = 44100, use = "podcast" },
+  { name = "Télévision (EBU R128)", short = "TV R128", target = -23, tol = 0.5, tp = -1, srate = 48000, use = "adr" },
+  { name = "Netflix (dialogues)", short = "Netflix", target = -27, tol = 2, tp = -2, srate = 48000, use = "adr",
+    note = "Netflix mesure seulement les passages dialogués (« dialog-gated ») ; REAPER mesure tout le programme : la valeur affichée est une approximation, à confirmer avec un mesureur de dialogues avant livraison." },
+  { name = "Web / YouTube", short = "Web", target = -14, tol = 1, tp = -1, srate = 48000, use = "adr" },
 }
 local LIMDESC, LIMDESC_OLD = "Toolbox limiter", "PodSuite limiter"
 local LIMFILE = "Toolbox limiter.jsfx"
@@ -226,6 +231,7 @@ local function suggestions(m, N)
   if m.tp_src == "sample" then
     out[#out + 1] = "Remarque : le true peak n'a pas pu être mesuré ; c'est la crête échantillon (dBFS) qui est affichée. Le true peak pouvant être un peu plus haut, on exige 1 dB de marge."
   end
+  if N.note then out[#out + 1] = N.note end
   if S.scope == "sel" then
     out[#out + 1] = "Mesure sur la sélection temporelle seulement : la valeur du fichier complet peut être différente."
   end

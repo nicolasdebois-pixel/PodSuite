@@ -7,7 +7,7 @@ local UI, set_msg, verdict, suggestions = L.UI, L.set_msg, L.verdict, L.suggesti
 local do_measure, do_correct, remove_lim, lim_gain = L.do_measure, L.do_correct, L.remove_lim, L.lim_gain
 
 ---------------------------------------------------------------- Interface
-local W, H = 660, 680
+local W, H = 660, 760
 local U = dofile(scriptdir .. "Toolbox_ui.lua")
 U.init(TITLE, W, H)
 local COL = {
@@ -64,11 +64,14 @@ local function draw()
   text("Norme visée", x, y + 6, COL.text, 1)
   local bw = 190
   for i, N in ipairs(NORMS) do
-    if button(N.name, x + w - (#NORMS - i + 1) * (bw + 6) + 6, y, bw, 28, false, S.norm == i) and not UI.busy then S.norm = i; save() end
+    local c, r = (i - 1) % 2, (i - 1) // 2
+    if button(N.name, x + w - (2 - c) * (bw + 6) + 6, y + r * 34, bw, 28, false, S.norm == i) and not UI.busy then S.norm = i; save() end
   end
   local N = NORMS[S.norm]
-  text(string.format("%s LUFS intégrés (± %s LU) · true peak max %s dBTP", num(N.target, 0), num(N.tol, 0), num(N.tp, 0)), x + w - 2 * (bw + 6) + 6, y + 36, COL.muted, 2)
-  y = y + 66
+  local rows = (#NORMS + 1) // 2
+  local d = (N.tol % 1 ~= 0) and 1 or 0
+  text(string.format("%s LUFS intégrés (± %s LU) · true peak max %s dBTP", num(N.target, 0), num(N.tol, d), num(N.tp, 0)), x + w - 2 * (bw + 6) + 6, y + rows * 34 + 2, COL.muted, 2)
+  y = y + rows * 34 + 32
   if true then                                                   -- tout le projet, ou une partie seulement
     text("Portion mesurée", x, y + 6, COL.text, 1)
     if button("Tout le projet", x + w - 2 * (bw + 6) + 6, y, bw, 28, false, S.scope == "all") and not UI.busy then S.scope = "all"; save() end
@@ -90,7 +93,7 @@ local function draw()
   else
     local okL, okT = verdict(m, N)
     local tw = (w - 24) / 3
-    tile(x, y, tw, 84, "Loudness intégrée", num(m.lufs) .. " LUFS", string.format("visé : %s à %s", num(N.target - N.tol, 0), num(N.target + N.tol, 0)), okL)
+    tile(x, y, tw, 84, "Loudness intégrée", num(m.lufs) .. " LUFS", string.format("visé : %s à %s", num(N.target - N.tol, (N.tol % 1 ~= 0) and 1 or 0), num(N.target + N.tol, (N.tol % 1 ~= 0) and 1 or 0)), okL)
     tile(x + tw + 12, y, tw, 84, m.tp_src == "sample" and "Crête (échantillon)" or "True peak", sgn(m.tp) .. (m.tp_src == "sample" and " dBFS" or " dBTP"), m.tp_src == "sample" and ("max : " .. num(N.tp - 1, 0) .. " dBFS (marge)") or ("max : " .. num(N.tp, 0) .. " dBTP"), okT)
     tile(x + 2 * (tw + 12), y, tw, 84, "Écart de volume (LRA)", m.lra and (num(m.lra) .. " LU") or "—", "bas = voix régulière", m.lra and (m.lra <= LRA_HIGH) or nil)
     y = y + 100
