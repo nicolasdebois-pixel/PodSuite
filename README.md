@@ -52,6 +52,18 @@ Dès le premier passage barré, PodSuite crée une piste **« ✂ Intervenant »
 le montage depuis les rushes à chaque modification. Les rushes ne sont jamais modifiés, seulement rendus muets.
 Le sélecteur **Montage / Rushes** de la page choisit ce que REAPER fait entendre.
 
+## Contrôle du niveau avant l'export
+Action **PodSuite - Controle du niveau** (REAPER 6.71 ou plus récent).
+1. Choisissez la norme : **Podcast (Apple, autres)** = −16 LUFS intégrés (± 1 LU), true peak max −1 dBTP ;
+   **Podcast (Spotify)** = −14 LUFS intégrés (± 1 LU), true peak max −1 dBTP.
+2. Cliquez sur **Mesurer** : REAPER lit tout le mix du master (plus vite que le temps réel) sans créer de fichier.
+3. L'outil affiche la loudness intégrée, le true peak et l'écart de volume (LRA), dit si c'est conforme et propose des pistes.
+4. **Corriger automatiquement** place « PodSuite limiter » (limiteur true peak) en fin de chaîne du master,
+   règle son gain et son plafond, puis remesure jusqu'à être dans la norme. **Retirer le limiteur** annule tout.
+
+Conseil : si le limiteur doit réduire les crêtes de plus de 6 dB, régularisez d'abord la voix
+(Vocal level & de-esser) : le résultat sonnera plus naturel.
+
 ## Pour le mainteneur : publier une version
 1. Modifiez les fichiers dans `Scripts/` ou `www/`.
 2. Dans `podsuite.json`, augmentez `version` et décrivez les changements dans `changelog`.

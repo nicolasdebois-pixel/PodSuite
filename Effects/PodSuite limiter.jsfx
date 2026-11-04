@@ -1,0 +1,77 @@
+desc:PodSuite limiter (true peak)
+//tags: limiter loudness true-peak podcast
+//author: Nicolas Debois
+// Limiteur « true peak » piloté par l'outil « PodSuite - Vérifier le niveau d'export ».
+// Gain d'entrée, puis limitation avec anticipation de 1,5 ms : les crêtes entre échantillons
+// (estimées par sur-échantillonnage x4) ne dépassent jamais le plafond.
+slider1:gain_db=0<-24,24,0.1>Gain (dB)
+slider2:ceil_db=-1<-6,0,0.1>Plafond (dBTP)
+slider3:rel_ms=120<20,1000,1>Relâchement (ms)
+
+in_pin:gauche
+in_pin:droite
+out_pin:gauche
+out_pin:droite
+
+@init
+// filtre d'interpolation x4 : sinc fenêtrée (Kaiser-Bessel approchée par Blackman), 16 points par phase
+NT = 16; NP = 4;
+coef = 0;                                   // coef[p*NT + k]
+p = 1;
+loop(NP - 1,
+  k = 0;
+  loop(NT,
+    x = (k - NT / 2 + 1) - p / NP;          // distance (en échantillons) au point interpolé
+    s = abs(x) < 0.000000001 ? 1 : sin($pi * x) / ($pi * x);
+    w = 0.42 + 0.5 * cos($pi * x / (NT / 2)) + 0.08 * cos(2 * $pi * x / (NT / 2));
+    coef[p * NT + k] = s * max(w, 0);
+    k += 1;
+  );
+  p += 1;
+);
+hl = 64; hr = hl + 64;                      // historiques gauche/droite (NT derniers échantillons)
+LA = max(1, floor(0.0015 * srate + 0.5));   // anticipation
+dl = 1024; dr = dl + 8192; DN = 8192;       // lignes à retard
+mq = dr + 8192;                             // file pour le minimum glissant (indices)
+mv = mq + 8192;                             // file pour le minimum glissant (valeurs)
+bx = mv + 8192;                             // tampon de la moyenne glissante
+wpos = 0; qh = qt = 0; bsum = 0; bi = 0; env = 1; n = 0;
+memset(dl, 0, DN * 2); memset(bx, 1, 8192); bsum = LA;
+pdc_delay = 2 * LA; pdc_bot_ch = 0; pdc_top_ch = 2;
+
+@slider
+g = 10 ^ (gain_db / 20);
+cl = 10 ^ ((ceil_db - 0.15) / 20);          // petite marge de sécurité
+rc = exp(-1 / (rel_ms * 0.001 * srate));
+
+@sample
+a = spl0 * g; b = spl1 * g;
+// historique pour l'interpolation
+memcpy(hl, hl + 1, NT - 1); hl[NT - 1] = a;
+memcpy(hr, hr + 1, NT - 1); hr[NT - 1] = b;
+pk = max(abs(a), abs(b));
+p = 1;
+loop(NP - 1,
+  sa = sb = 0; k = 0;
+  loop(NT, sa += hl[k] * coef[p * NT + k]; sb += hr[k] * coef[p * NT + k]; k += 1; );
+  pk = max(pk, max(abs(sa), abs(sb)));
+  p += 1;
+);
+// la crête interpolée correspond à un point situé NT/2 échantillons en arrière : on la retarde d'autant
+// en comparant aussi l'échantillon brut ; l'anticipation LA (> NT/2 à 44,1/48 kHz) couvre ce décalage
+need = pk > cl ? cl / pk : 1;
+// minimum glissant sur 2*LA+1 échantillons (file monotone)
+while (qt > qh && mv[(qt - 1) & 8191] >= need) ( qt -= 1; );
+mq[qt & 8191] = n; mv[qt & 8191] = need; qt += 1;
+while (mq[qh & 8191] <= n - 2 * LA - 1) ( qh += 1; );
+m = mv[qh & 8191];
+// relâchement progressif, attaque immédiate
+env = m < env ? m : m + (env - m) * rc;
+// moyenne glissante sur LA échantillons : transition douce, toujours sous le minimum au moment de la crête
+bsum += env - bx[bi]; bx[bi] = env; bi = (bi + 1) % LA;
+gg = bsum / LA;
+// retard du signal de 2*LA échantillons
+dl[wpos] = a; dr[wpos] = b;
+rp = (wpos - 2 * LA + DN) % DN;
+spl0 = dl[rp] * gg; spl1 = dr[rp] * gg;
+wpos = (wpos + 1) % DN; n += 1;

@@ -57,6 +57,7 @@ def main():
             url = f"https://raw.githubusercontent.com/{a.repo}/{a.commit}/" + urllib.parse.quote(rel)
             attrs = {"file": name, "hash": "1220" + hashlib.sha256(data).hexdigest()}
             if name in man["main"]: attrs["main"] = "main"
+            if rel.startswith("Effects/"): attrs["type"] = "effect"
             ET.SubElement(ver, "source", attrs).text = url
         # versions : la plus ancienne d'abord, on en garde KEEP
         old = pkg.findall("version")
