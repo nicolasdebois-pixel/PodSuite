@@ -2,7 +2,7 @@
   "name": "Podcast & ADR Toolbox",
   "category": "Toolbox",
   "package": "Podcast & ADR Toolbox",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "author": "Nicolas Debois",
   "description": "Boîte à outils gratuite pour REAPER : dérushage de podcast par le texte (Whisper en local), traitement de la voix (Vocal level & de-esser), ripple sur les bords des items, contrôle du niveau avant l'export. Une seule action à retenir : « Podcast & ADR Toolbox ».",
   "files": [
@@ -65,9 +65,6 @@
     }
   ],
   "changelog": [
-    "Plus aucune mention de « PodSuite » à l'écran : fenêtres, messages, plugins (« Toolbox limiter », « Toolbox true peak meter ») et actions (« Toolbox - … ») portent le nom de la boîte à outils",
-    "Ripple sur les bords : les voisins se décalent EN DIRECT pendant qu'on tire le bord (bord droit : ce qui suit ; bord gauche : ce qui précède), sans aucun fondu ajouté",
-    "Aimantation des items activée par défaut, réglable dans la page Montage",
-    "La page de dérushage s'appelle maintenant derushage.html"
+    "Fenêtre principale : le Montage passe avant la Voix (2 · Montage, 3 · Voix), dans l'ordre du travail"
   ]
 }

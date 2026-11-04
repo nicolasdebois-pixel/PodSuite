@@ -3,8 +3,8 @@
 Podcast & ADR Toolbox est une boîte à outils gratuite pour REAPER, sur Mac et sur Windows. Elle réunit :
 
 - **Dérushage** : transcription de l'audio avec Whisper et montage d'un podcast à partir du texte ;
-- **Vocal level & de-esser** : une voix plus régulière et plus propre, en un clic ;
 - **Montage** : le ripple sur les bords des items ;
+- **Vocal level & de-esser** : une voix plus régulière et plus propre, en un clic ;
 - **Export** : la vérification du niveau (LUFS, true peak) avant d'exporter.
 
 L'installation prend une quinzaine de minutes, dont la plupart passées à attendre un téléchargement. Elle se fait **une seule fois** par ordinateur : ensuite, les mises à jour arrivent toutes seules.
@@ -54,7 +54,7 @@ ReaPack est le gestionnaire d'extensions de REAPER, une sorte de « magasin d'ap
 2. Tapez **Toolbox** dans le champ de recherche.
 3. Sélectionnez **Script: Podcast & ADR Toolbox.lua**, puis cliquez sur **Run**.
 
-La fenêtre principale s'ouvre, avec une page par étape : **Accueil**, **Dérushage**, **Voix**, **Montage**, **Export**.
+La fenêtre principale s'ouvre, avec une page par étape : **Accueil**, **Dérushage**, **Montage**, **Voix**, **Export**.
 
 > **C'est la seule action à retenir.** Pour l'avoir toujours sous la main :
 > - **un bouton dans la barre d'outils** : clic droit sur la barre d'outils › **Customize toolbar…** › **Add…**, cherchez *Podcast & ADR Toolbox*, puis **OK** ;
@@ -64,7 +64,7 @@ La fenêtre principale s'ouvre, avec une page par étape : **Accueil**, **Dérus
 
 ## Étape 5 — Installer la transcription (une seule fois)
 
-Cette étape n'est nécessaire que pour **transcrire et dérusher** (page *Dérushage*). Les pages **Voix**, **Montage** et **Export** fonctionnent déjà.
+Cette étape n'est nécessaire que pour **transcrire et dérusher** (page *Dérushage*). Les pages **Montage**, **Voix** et **Export** fonctionnent déjà.
 
 1. Dans la page **Accueil**, cliquez sur **Installer / réparer**.
 2. Suivez l'assistant. Il :

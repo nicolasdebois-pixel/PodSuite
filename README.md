@@ -3,8 +3,8 @@
 Boîte à outils gratuite pour REAPER (Mac et Windows). Tout se passe sur votre ordinateur : l'audio ne part nulle part.
 
 - **Dérushage** : transcription mot par mot avec Whisper, détection du clicker, montage par le texte.
-- **Vocal level & de-esser** : niveau régulier, sifflantes, plosives, voix trop proche, équilibre tonal.
 - **Montage** : ripple sur les bords des items.
+- **Vocal level & de-esser** : niveau régulier, sifflantes, plosives, voix trop proche, équilibre tonal.
 - **Export** : contrôle du niveau (LUFS, true peak) avec correction automatique.
 - **Doublage (ADR / bande rythmo)** : à venir.
 
@@ -20,7 +20,7 @@ La procédure détaillée, pas à pas, est dans [INSTALLATION.md](INSTALLATION.m
 
 ## Utilisation
 Une seule action à retenir : **Podcast & ADR Toolbox**. Elle ouvre une fenêtre avec une page par étape
-(Dérushage, Voix, Montage, Export) d'où l'on lance tous les outils. Mettez-la dans une barre d'outils.
+(Dérushage, Montage, Voix, Export) d'où l'on lance tous les outils. Mettez-la dans une barre d'outils.
 
 
 1. Enregistrez le projet REAPER.

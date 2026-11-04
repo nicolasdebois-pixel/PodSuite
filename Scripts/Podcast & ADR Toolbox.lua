@@ -151,8 +151,8 @@ end
 local PAGES = {
   { id = "home", name = "Accueil" },
   { id = "edit", name = "1 · Dérushage" },
-  { id = "voice", name = "2 · Voix" },
-  { id = "cut", name = "3 · Montage" },
+  { id = "cut", name = "2 · Montage" },
+  { id = "voice", name = "3 · Voix" },
   { id = "export", name = "4 · Export" },
 }
 local page = reaper.GetExtState(SEC, "hub_page"); if page == "" then page = "home" end
@@ -177,7 +177,7 @@ local function action_row(x, y, w, title, desc, label, primary, disabled, extra)
 end
 
 local function page_home(x, y, w)
-  y = header(x, y, w, "Bienvenue", "Tout ce qu'il faut pour monter un podcast dans REAPER, dans l'ordre : on dérushe à partir du texte, on soigne la voix, on peaufine le montage, puis on vérifie le niveau avant d'exporter.")
+  y = header(x, y, w, "Bienvenue", "Tout ce qu'il faut pour monter un podcast dans REAPER, dans l'ordre : on dérushe à partir du texte, on peaufine le montage, on soigne la voix, puis on vérifie le niveau avant d'exporter.")
   -- état de l'installation
   local whisper_ok = P.settings_ok()
   local web_ok = P.web_port() ~= nil
@@ -202,8 +202,8 @@ local function page_home(x, y, w)
   local cw = (w - 3 * 12) / 4
   local cards = {
     { "edit", "1 · Dérushage", "Transcrire, barrer les passages à couper dans le texte." },
-    { "voice", "2 · Voix", "Niveau régulier, sifflantes, plosives, équilibre." },
-    { "cut", "3 · Montage", "Ripple editing et ripple sur les bords des items." },
+    { "cut", "2 · Montage", "Ripple editing et ripple sur les bords des items." },
+    { "voice", "3 · Voix", "Niveau régulier, sifflantes, plosives, équilibre." },
     { "export", "4 · Export", "Vérifier la norme (LUFS, true peak), puis exporter." },
   }
   for i, c in ipairs(cards) do
@@ -248,7 +248,7 @@ local function page_voice(x, y, w)
   y = header(x, y, w, "Voix", "Vocal level & de-esser rend la voix plus régulière et plus propre : niveau, sifflantes, plosives, voix trop proche du micro, équilibre tonal. Il dessine des courbes sur les items, rien n'est figé.")
   local p
   if vocal_path then
-    y, p = action_row(x, y, w, "Vocal level & de-esser", "Sélectionnez les items de voix (après le dérushage), puis ouvrez l'outil.", "Ouvrir", true)
+    y, p = action_row(x, y, w, "Vocal level & de-esser", "Sélectionnez les items de voix (une fois le montage terminé), puis ouvrez l'outil.", "Ouvrir", true)
     if p then run(vocal_path) end
   else
     col(COL.panel); gfx.rect(x, y, w, 96, 1)
