@@ -1,16 +1,16 @@
 -- Podcast & ADR Toolbox.lua — la fenêtre principale : tous les outils, page par page.
 -- C'est la seule action à retenir (ou à mettre dans une barre d'outils) : elle lance les autres outils.
 local dir = ({ reaper.get_action_context() })[2]:match("^(.*[/\\])")
-local P = dofile(dir .. "PodSuite_lib.lua")
+local P = dofile(dir .. "Toolbox_lib.lua")
 
 local TITLE = "Podcast & ADR Toolbox"
 local SEC = P.SECTION
 
 ---------------------------------------------------------------- Lancer les autres outils
 local SCRIPTS = {
-  install = "PodSuite - Installer.lua", server = "PodSuite - Serveur.lua", transcribe = "PodSuite - Transcrire.lua",
-  clicker = "PodSuite - Calibrer le clicker.lua", settings = "PodSuite - Reglages.lua",
-  loudness = "PodSuite - Controle du niveau.lua", ripple = "PodSuite - Ripple edge.lua",
+  install = "Toolbox - Installation.lua", server = "Toolbox - Serveur de derushage.lua", transcribe = "Toolbox - Transcrire.lua",
+  clicker = "Toolbox - Calibrer le clicker.lua", settings = "Toolbox - Reglages de transcription.lua",
+  loudness = "Toolbox - Controle du niveau.lua", ripple = "Toolbox - Ripple edge.lua",
 }
 local cmd_cache = {}
 local function cmd_of(path)
@@ -61,23 +61,45 @@ end
 
 ---------------------------------------------------------------- Ripple de REAPER (actions retrouvées par leur nom)
 local RIPPLE = {}
+local SNAP = {}                          -- toggle = aimantation générale, items = aimantation aux bords des items
 local function find_ripple_cmds()
   local ok = true
   for _, k in ipairs({ "off", "track", "all" }) do
     local id = tonumber(reaper.GetExtState(SEC, "ripple_cmd_" .. k))
     if id then RIPPLE[k] = id else ok = false end
   end
-  if ok or not reaper.kbd_getTextFromCmd then return end
-  for id = 40000, 45000 do
+  for _, k in ipairs({ "toggle", "items" }) do
+    local id = tonumber(reaper.GetExtState(SEC, "snap_cmd_" .. k))
+    if id and id > 0 then SNAP[k] = id end
+  end
+  if reaper.GetExtState(SEC, "cmd_scan") == "2" and ok then return end
+  if not reaper.kbd_getTextFromCmd then return end
+  for id = 1, 45000 do
     local okc, name = pcall(reaper.kbd_getTextFromCmd, id, 0)
-    if okc and type(name) == "string" then
+    if okc and type(name) == "string" and name ~= "" then
       local n = name:lower()
       if n:find("ripple editing", 1, true) and not n:find("toggle", 1, true) and not n:find("cycle", 1, true) then
         local k = (n:find("per%-track") or n:find("per track")) and "track" or n:find("all tracks", 1, true) and "all" or n:find("off", 1, true) and "off"
         if k and not RIPPLE[k] then RIPPLE[k] = id; reaper.SetExtState(SEC, "ripple_cmd_" .. k, tostring(id), true) end
+      elseif n == "options: toggle snapping" and not SNAP.toggle then
+        SNAP.toggle = id
+      elseif n:find("toggle", 1, true) and n:find("snap", 1, true) and (n:find("item edge", 1, true) or n:find("media item", 1, true))
+          and not n:find("grid", 1, true) and not n:find("midi", 1, true) and not SNAP.items then
+        SNAP.items = id
       end
     end
   end
+  reaper.SetExtState(SEC, "snap_cmd_toggle", tostring(SNAP.toggle or 0), true)
+  reaper.SetExtState(SEC, "snap_cmd_items", tostring(SNAP.items or 0), true)
+  reaper.SetExtState(SEC, "cmd_scan", "2", true)
+end
+local function snap_on()
+  return SNAP.toggle and reaper.GetToggleCommandState(SNAP.toggle) == 1
+    and (not SNAP.items or reaper.GetToggleCommandState(SNAP.items) == 1)
+end
+local function set_snap(on)
+  if SNAP.toggle and (reaper.GetToggleCommandState(SNAP.toggle) == 1) ~= on then reaper.Main_OnCommand(SNAP.toggle, 0) end
+  if on and SNAP.items and reaper.GetToggleCommandState(SNAP.items) ~= 1 then reaper.Main_OnCommand(SNAP.items, 0) end
 end
 local function ripple_mode()
   if RIPPLE.all and reaper.GetToggleCommandState(RIPPLE.all) == 1 then return "all" end
@@ -216,7 +238,7 @@ local function page_edit(x, y, w)
     if button("Arrêter le lien", x + w - 210, y - 14, 210, 26) then reaper.SetExtState(SEC, "stop_server", "1", false) end
     y = y + 20
   end
-  y, p = action_row(x, y, w, "Calibrer le clicker", "Placez le curseur juste avant un clic sur la piste du micro : PodSuite apprend le son de votre clicker.", "Calibrer")
+  y, p = action_row(x, y, w, "Calibrer le clicker", "Placez le curseur juste avant un clic sur la piste du micro : l'outil apprend le son de votre clicker.", "Calibrer")
   if p then run(own("clicker")) end
   y, p = action_row(x, y, w, "Réglages de transcription", "Emplacement de Whisper, modèle, langue, vocabulaire.", "Réglages")
   if p then run(own("settings")) end
@@ -237,7 +259,17 @@ local function page_voice(x, y, w)
 end
 
 local function page_cut(x, y, w)
-  y = header(x, y, w, "Montage", "Le ripple editing fait suivre la suite du montage quand on supprime ou déplace un item. PodSuite ajoute le ripple sur les bords : quand on raccourcit ou rallonge un item par un bord, ce qui l'entoure suit, sans trou.")
+  y = header(x, y, w, "Montage", "Le ripple editing fait suivre la suite du montage quand on supprime ou déplace un item. La boîte à outils ajoute le ripple sur les bords, et l'aimantation garde les items collés les uns aux autres.")
+  -- aimantation
+  col(COL.line); gfx.line(x, y, x + w, y)
+  text("Aimantation des items (snap)", x, y + 14, COL.text, 5)
+  if SNAP.toggle then
+    local on = snap_on()
+    if button(on and "Activée" or "Désactivée", x + w - 150, y + 12, 150, 30, false, on) then set_snap(not on) end
+    y = wrap("Quand on déplace un item ou qu'on tire un de ses bords, il se colle au bord des items voisins.", x, y + 48, w - 180, COL.muted, 2) + 16
+  else
+    y = wrap("Activez l'aimant de la barre d'outils de REAPER (clic droit dessus pour cocher l'aimantation aux items).", x, y + 48, w, COL.muted, 2) + 16
+  end
   -- ripple de REAPER
   col(COL.line); gfx.line(x, y, x + w, y)
   text("Ripple editing de REAPER", x, y + 14, COL.text, 5)
@@ -259,15 +291,7 @@ local function page_cut(x, y, w)
   if button(on and "Activé" or "Désactivé", x + w - 150, y + 12, 150, 30, false, on) then
     if on then reaper.SetExtState(SEC, "ripple_stop", "1", false) else run(own("ripple")) end
   end
-  y = wrap("Bord droit : tout ce qui suit l'item se décale d'autant. Même portée que le ripple de REAPER (sa piste, ou toutes les pistes). Ctrl/Cmd+Z annule le décalage.", x, y + 48, w - 24, COL.muted, 2) + 10
-  text("Quand on tire le bord gauche :", x, y + 2, COL.text, 2)
-  local lm = reaper.GetExtState(SEC, "ripple_left"); if lm ~= "before" then lm = "after" end
-  y = y + 24
-  if button("L'item et la suite reculent", x, y, 230, 28, false, lm == "after") then reaper.SetExtState(SEC, "ripple_left", "after", true) end
-  if button("Ce qui précède avance", x + 236, y, 230, 28, false, lm == "before") then reaper.SetExtState(SEC, "ripple_left", "before", true) end
-  y = y + 40
-  wrap(lm == "after" and "Exemple : vous coupez le « euh » au début d'une phrase en tirant le bord gauche : la phrase recule et colle à la précédente, et tout ce qui suit recule aussi."
-    or "Exemple : vous coupez le « euh » au début d'une phrase en tirant le bord gauche : la phrase reste en place et tout ce qui la précède avance pour la rejoindre.", x, y, w, COL.muted, 2)
+  y = wrap("Pendant que vous tirez un bord, les voisins se décalent en direct, de la même valeur : bord droit, tout ce qui suit ; bord gauche, tout ce qui précède. Aucun fondu n'est ajouté. Même portée que le ripple de REAPER (la piste, ou toutes les pistes).", x, y + 48, w - 24, COL.muted, 2) + 10
 end
 
 local function page_export(x, y, w)
@@ -324,6 +348,9 @@ local function loop()
 end
 
 find_ripple_cmds()
+if reaper.GetExtState(SEC, "snap_default") ~= "1" then          -- par défaut : items aimantés les uns aux autres
+  set_snap(true); reaper.SetExtState(SEC, "snap_default", "1", true)
+end
 vocal_path = find_vocal()
 if not DRAW[page] then page = "home" end
 loop()

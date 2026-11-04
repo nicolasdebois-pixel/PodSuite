@@ -1,10 +1,10 @@
--- PodSuite - Controle du niveau.lua
+-- Toolbox - Controle du niveau.lua
 -- Mesure le mix (bus master) AVANT l'export : loudness intégrée (LUFS), true peak, écart de volume (LRA),
 -- compare à une norme (Podcast -16 LUFS, Spotify -14 LUFS), propose des pistes de correction
 -- et peut corriger automatiquement avec un limiteur true peak placé en fin de chaîne du master.
 -- Nécessite REAPER 6.71 ou plus récent (mesure par « dry run render »).
 
-local TITLE = "PodSuite – Contrôle du niveau d'export"
+local TITLE = "Podcast & ADR Toolbox – Contrôle du niveau d'export"
 local SECTION = "PODSUITE_LOUDNESS"
 local SEP = package.config:sub(1, 1)
 local scriptdir = ({ reaper.get_action_context() })[2]:match("^(.*[/\\])") or ""
@@ -13,8 +13,8 @@ local NORMS = {
   { name = "Podcast (Apple, autres)", target = -16, tol = 1, tp = -1 },
   { name = "Podcast (Spotify)", target = -14, tol = 1, tp = -1 },
 }
-local LIMDESC = "PodSuite limiter"
-local LIMFILE = "PodSuite limiter.jsfx"
+local LIMDESC, LIMDESC_OLD = "Toolbox limiter", "Toolbox limiter"
+local LIMFILE = "Toolbox limiter.jsfx"
 local LRA_HIGH = 10                       -- au-delà, les écarts de volume se remarquent dans un podcast
 
 local S = { norm = tonumber(reaper.GetExtState(SECTION, "norm")) or 1, scope = reaper.GetExtState(SECTION, "scope") }
@@ -79,7 +79,7 @@ local function find_lim()
   local tr = master()
   for i = 0, reaper.TrackFX_GetCount(tr) - 1 do
     local _, name = reaper.TrackFX_GetFXName(tr, i, "")
-    if name:find(LIMDESC, 1, true) or name:find(LIMFILE, 1, true) then return i end
+    if name:find(LIMDESC, 1, true) or name:find(LIMDESC_OLD, 1, true) or name:find(LIMFILE, 1, true) or name:find("Toolbox limiter.jsfx", 1, true) then return i end
   end
   return -1
 end
@@ -132,7 +132,7 @@ end
 
 -- Mesureur de true peak posé temporairement en fin de chaîne du master pendant la mesure.
 -- Il voit le son après tous les effets du master ; le fader du master (appliqué après) est ajouté ensuite.
-local METERFILE, METERDESC = "PodSuite TP meter.jsfx", "PodSuite true peak meter"
+local METERFILE, METERDESC = "Toolbox TP meter.jsfx", "Toolbox true peak meter"
 local function add_meter()
   local name = jsfx_name(METERFILE)
   if not name then return nil end
@@ -213,7 +213,7 @@ local function suggestions(m, N)
     elseif not okL then
       out[#out + 1] = string.format("Les crêtes resteront sous la limite (environ %s dBTP) : un simple gain suffit.", sgn(tp_after))
     end
-    out[#out + 1] = "« Corriger automatiquement » place « PodSuite limiter » en fin de chaîne du master, règle le gain et le plafond, puis remesure."
+    out[#out + 1] = "« Corriger automatiquement » place « Toolbox limiter » en fin de chaîne du master, règle le gain et le plafond, puis remesure."
   end
   if m.lra and m.lra > LRA_HIGH then
     out[#out + 1] = string.format("Écarts de volume importants (LRA %s LU) : certains passages seront trop faibles en voiture ou dans les transports. Régularisez la voix avec Vocal level & de-esser.", num(m.lra))
@@ -234,7 +234,7 @@ end
 -- correction automatique : gain + limiteur, jusqu'à 4 mesures
 local function auto_correct(N, on_step)
   local fx = ensure_lim()
-  if not fx then return nil, "Plugin « PodSuite limiter » introuvable : resynchronisez les paquets dans ReaPack." end
+  if not fx then return nil, "Plugin « Toolbox limiter » introuvable : resynchronisez les paquets dans ReaPack." end
   local tr = master()
   reaper.TrackFX_SetParam(tr, fx, 1, N.tp)
   local fd = fader_db()
@@ -316,7 +316,7 @@ local function do_correct()
     local N = NORMS[S.norm]
     reaper.Undo_BeginBlock()
     local m, err = auto_correct(N)
-    reaper.Undo_EndBlock("PodSuite : correction du niveau d'export", -1)
+    reaper.Undo_EndBlock("Toolbox : correction du niveau d'export", -1)
     UI.busy = false
     if m then
       UI.m = m
@@ -333,7 +333,7 @@ local function remove_lim()
   if fx < 0 then return end
   reaper.Undo_BeginBlock()
   reaper.TrackFX_Delete(master(), fx)
-  reaper.Undo_EndBlock("PodSuite : limiteur retiré", -1)
+  reaper.Undo_EndBlock("Toolbox : limiteur retiré", -1)
   UI.m = nil
   set_msg("Limiteur retiré du master. Remesurez.")
 end
@@ -367,7 +367,7 @@ local function draw()
   if button(UI.busy and "Mesure…" or (UI.m and "Remesurer" or "Mesurer"), x, y, 200, 36, true) and not UI.busy then do_measure() end
   local g, en = lim_gain()
   if g then
-    text(string.format("PodSuite limiter sur le master : gain %s dB%s", sgn(g), en and "" or " (désactivé)"), x + 214, y + 4, COL.muted, 2)
+    text(string.format("Toolbox limiter sur le master : gain %s dB%s", sgn(g), en and "" or " (désactivé)"), x + 214, y + 4, COL.muted, 2)
     if button("Retirer le limiteur", x + 214, y + 20, 150, 22) and not UI.busy then remove_lim() end
   end
   y = y + 52

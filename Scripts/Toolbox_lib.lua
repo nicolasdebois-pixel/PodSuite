@@ -1,4 +1,4 @@
--- PodSuite_lib.lua — fonctions communes de la suite PodSuite pour REAPER
+-- Toolbox_lib.lua — fonctions communes de Podcast & ADR Toolbox
 -- (ne pas lancer directement : chargé par les autres scripts)
 
 local P = {}
@@ -152,9 +152,9 @@ function P.www_data() return P.www_dir() .. P.SEP .. "podsuite_data.json" end
 -- Copie (ou met à jour) la page de dérushage dans reaper_www_root.
 -- ReaPack l'installe à côté des scripts ; dans le zip de développement elle est dans ../www/.
 function P.install_page()
-  local data = P.read_file(P.DIR .. "podsuite.html") or P.read_file(P.DIR .. ".." .. P.SEP .. "www" .. P.SEP .. "podsuite.html")
+  local data = P.read_file(P.DIR .. "derushage.html") or P.read_file(P.DIR .. ".." .. P.SEP .. "www" .. P.SEP .. "derushage.html")
   if not data then return false end
-  local dst = P.www_dir() .. P.SEP .. "podsuite.html"
+  local dst = P.www_dir() .. P.SEP .. "derushage.html"
   if P.read_file(dst) ~= data then return P.write_file(dst, data) end
   return true
 end
@@ -171,7 +171,7 @@ end
 -- Adresse de la page, avec le port réellement choisi dans Préférences › Control/OSC/web
 -- (lu dans reaper.ini, lignes « csurf_N=HTTP flags port … »)
 function P.web_url(page)
-  page = page or "podsuite.html"
+  page = page or "derushage.html"
   local port = P.web_port()
   return "http://localhost:" .. (port and tostring(port) or "<votre port>") .. "/" .. page
 end
@@ -204,17 +204,17 @@ function P.settings_dialog()
   local w = P.get("whisper"); if not P.exists(w) then w = guess_whisper() end
   local caps = "Programme whisper-cli,Modèle (.bin),Langue (fr, en…),Cœurs CPU,Vocabulaire / noms propres,Sensibilité des clics (0-100),extrawidth=420,separator=\n"
   local vals = table.concat({ w, P.get("model"), P.get("lang"), P.get("threads"), P.get("prompt"), P.get("click_sens") }, "\n")
-  local ok, res = reaper.GetUserInputs("PodSuite — Réglages", 6, caps, vals)
+  local ok, res = reaper.GetUserInputs("Podcast & ADR Toolbox — Réglages", 6, caps, vals)
   if not ok then return false end
   local f = {}
   for v in (res .. "\n"):gmatch("(.-)\n") do f[#f+1] = v:match("^%s*(.-)%s*$") end
   if not P.exists(f[1]) then
-    reaper.MB("Je ne trouve pas whisper-cli.\n\nChoisissez le fichier dans la fenêtre suivante :\n• Mac : /opt/homebrew/bin/whisper-cli\n• Windows : whisper-cli.exe dans le dossier dézippé.", "PodSuite", 0)
+    reaper.MB("Je ne trouve pas whisper-cli.\n\nChoisissez le fichier dans la fenêtre suivante :\n• Mac : /opt/homebrew/bin/whisper-cli\n• Windows : whisper-cli.exe dans le dossier dézippé.", "Podcast & ADR Toolbox", 0)
     local ok2, p = reaper.GetUserFileNameForRead(f[1], "Choisir whisper-cli", P.WIN and "*.exe" or "")
     if ok2 then f[1] = p end
   end
   if not P.exists(f[2]) then
-    reaper.MB("Je ne trouve pas le modèle.\n\nChoisissez le fichier .bin téléchargé (par ex. ggml-large-v3-turbo-q5_0.bin).", "PodSuite", 0)
+    reaper.MB("Je ne trouve pas le modèle.\n\nChoisissez le fichier .bin téléchargé (par ex. ggml-large-v3-turbo-q5_0.bin).", "Podcast & ADR Toolbox", 0)
     local ok2, p = reaper.GetUserFileNameForRead(f[2], "Choisir le modèle Whisper", "*.bin")
     if ok2 then f[2] = p end
   end

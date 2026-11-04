@@ -1,25 +1,25 @@
--- PodSuite - Transcrire.lua
+-- Toolbox - Transcrire.lua
 -- Transcrit les items sélectionnés (une piste par intervenant) avec Whisper, mot par mot,
 -- attribue chaque mot à son intervenant et détecte les clics du clicker.
--- Résultat : page « podsuite.html » (interface web de REAPER) + marqueurs de clics.
+-- Résultat : page « derushage.html » (interface web de REAPER) + marqueurs de clics.
 
 local dir = ({ reaper.get_action_context() })[2]:match("^(.*[/\\])")
-local P = dofile(dir .. "PodSuite_lib.lua")
+local P = dofile(dir .. "Toolbox_lib.lua")
 
 ---------------------------------------------------------------- Préparation
 local proj, projfn, datadir, projname = P.project()
 if not projfn then
-  reaper.MB("Enregistrez d'abord le projet : PodSuite range ses fichiers à côté de lui.", "PodSuite", 0)
+  reaper.MB("Enregistrez d'abord le projet : la boîte à outils range ses fichiers à côté de lui.", "Podcast & ADR Toolbox", 0)
   return
 end
 if not P.settings_ok() then
-  reaper.MB("Indiquez d'abord où se trouvent Whisper et son modèle.", "PodSuite", 0)
+  reaper.MB("Indiquez d'abord où se trouvent Whisper et son modèle.", "Podcast & ADR Toolbox", 0)
   if not P.settings_dialog() then return end
 end
 
 local nsel = reaper.CountSelectedMediaItems(0)
 if nsel == 0 then
-  reaper.MB("Sélectionnez les items à transcrire : un item (ou plusieurs) par intervenant, chacun sur sa piste.", "PodSuite", 0)
+  reaper.MB("Sélectionnez les items à transcrire : un item (ou plusieurs) par intervenant, chacun sur sa piste.", "Podcast & ADR Toolbox", 0)
   return
 end
 
@@ -29,7 +29,7 @@ for i = 0, nsel - 1 do
   local tr = reaper.GetMediaItem_Track(it)
   local _, ext = reaper.GetSetMediaTrackInfo_String(tr, "P_EXT:PODSUITE", "", false)
   if ext ~= "" then
-    reaper.MB("La sélection contient des items d'une piste de montage PodSuite (✂).\nSélectionnez les items des rushes d'origine.", "PodSuite", 0)
+    reaper.MB("La sélection contient des items d'une piste de montage (✂).\nSélectionnez les items des rushes d'origine.", "Podcast & ADR Toolbox", 0)
     return
   end
   if not tindex[tr] then tindex[tr] = true; tracks[#tracks + 1] = tr end
@@ -42,7 +42,7 @@ table.sort(tracks, function(a, b) return reaper.GetMediaTrackInfo_Value(a, "IP_T
 
 local datafile = datadir .. P.SEP .. "transcript.json"
 if P.exists(datafile) then
-  if reaper.MB("Ce projet a déjà une transcription.\nLa remplacer ? Les passages barrés seront perdus.", "PodSuite", 4) ~= 6 then return end
+  if reaper.MB("Ce projet a déjà une transcription.\nLa remplacer ? Les passages barrés seront perdus.", "Podcast & ADR Toolbox", 4) ~= 6 then return end
 end
 reaper.RecursiveCreateDirectory(datadir, 0)
 
@@ -76,7 +76,7 @@ local BLOCK = P.SR
 local total = math.floor((t1 - t0) * P.SR)
 local nF = math.ceil(total / 160)
 local gain = 1 / math.sqrt(#tracks)
-local ui = P.progress("PodSuite — Transcription")
+local ui = P.progress("Podcast & ADR Toolbox — Transcription")
 local done = 0
 local clicks, chunks, envstr = {}, {}, ""
 local db, thr = {}, -60
@@ -186,7 +186,7 @@ function write_pass()
       local c = chunks[ci]
       if not wav then
         wav = P.wav_open(chunk_wav(ci))
-        if not wav then cleanup_readers(); ui.close(); reaper.MB("Impossible d'écrire dans " .. datadir, "PodSuite", 0) return end
+        if not wav then cleanup_readers(); ui.close(); reaper.MB("Impossible d'écrire dans " .. datadir, "Podcast & ADR Toolbox", 0) return end
       end
       local m = c.segs[si]
       local nTot = math.floor(m.len * P.SR + 0.5)
@@ -281,7 +281,7 @@ function wait_whisper()
     if use_dtw then last_size = -1; start_whisper(false) return end   -- nouvel essai sans DTW
     ui.close()
     local tail = log:sub(-900)
-    reaper.MB("Whisper n'a pas pu terminer.\n\nVérifiez les réglages (PodSuite - Reglages).\n\nDernières lignes du journal :\n" .. (tail ~= "" and tail or "(vide : le programme n'a pas démarré)"), "PodSuite", 0)
+    reaper.MB("Whisper n'a pas pu terminer.\n\nVérifiez les réglages (Toolbox - Reglages de transcription).\n\nDernières lignes du journal :\n" .. (tail ~= "" and tail or "(vide : le programme n'a pas démarré)"), "Podcast & ADR Toolbox", 0)
     return
   end
   reaper.defer(wait_whisper)
@@ -316,7 +316,7 @@ function finish()
   for k, chunk in ipairs(chunks) do
   local ok, res = pcall(P.json_decode, P.read_file(chunk_base(k) .. ".json") or "")
   if not ok or type(res) ~= "table" or type(res.transcription) ~= "table" then
-    ui.close(); reaper.MB("Le fichier produit par Whisper est illisible (morceau " .. k .. ").\n" .. tostring(res), "PodSuite", 0); return
+    ui.close(); reaper.MB("Le fichier produit par Whisper est illisible (morceau " .. k .. ").\n" .. tostring(res), "Podcast & ADR Toolbox", 0); return
   end
   for _, seg in ipairs(res.transcription) do
     local so = seg.offsets or {}
@@ -421,11 +421,11 @@ function finish()
   for _, c in ipairs(clicks) do
     reaper.AddProjectMarker2(0, false, c.t, 0, labels[c.n], -1, colors[c.n] | 0x1000000)
   end
-  reaper.Undo_EndBlock("PodSuite : marqueurs de clics", -1)
+  reaper.Undo_EndBlock("Toolbox : marqueurs de clics", -1)
 
   ui.close()
-  reaper.MB(string.format("Transcription terminée : %d mots, %d clic(s)%s.\n\nOuvrez la page de dérushage :\n" .. P.web_url() .. "\n\n(Le script PodSuite - Serveur doit tourner : c'est lui qui applique le montage dans REAPER.)",
-    #words, #clicks, tpl and "" or " (clicker non calibré : lancez PodSuite - Calibrer le clicker pour activer la détection)"), "PodSuite", 0)
+  reaper.MB(string.format("Transcription terminée : %d mots, %d clic(s)%s.\n\nOuvrez la page de dérushage :\n" .. P.web_url() .. "\n\n(Le script Toolbox - Serveur de derushage doit tourner : c'est lui qui applique le montage dans REAPER.)",
+    #words, #clicks, tpl and "" or " (clicker non calibré : lancez Toolbox - Calibrer le clicker pour activer la détection)"), "Podcast & ADR Toolbox", 0)
 end
 
 P.install_page()

@@ -1,7 +1,7 @@
-desc:PodSuite true peak meter
+desc:Toolbox true peak meter
 //tags: meter true-peak analysis
 //author: Nicolas Debois
-// Mesureur posé temporairement en fin de chaîne du master par « PodSuite - Controle du niveau »
+// Mesureur posé temporairement en fin de chaîne du master par « Toolbox - Controle du niveau »
 // pendant la mesure : il relève le true peak (sur-échantillonnage x4) sans modifier le son.
 slider1:tp=-150<-150,24,0.01>-True peak relevé (dBTP)
 slider2:reset=0<0,1000000,1>-Remise à zéro

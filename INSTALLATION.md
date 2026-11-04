@@ -2,7 +2,7 @@
 
 Podcast & ADR Toolbox est une boîte à outils gratuite pour REAPER, sur Mac et sur Windows. Elle réunit :
 
-- **PodSuite** : transcription de l'audio avec Whisper et montage d'un podcast à partir du texte ;
+- **Dérushage** : transcription de l'audio avec Whisper et montage d'un podcast à partir du texte ;
 - **Vocal level & de-esser** : une voix plus régulière et plus propre, en un clic ;
 - **Montage** : le ripple sur les bords des items ;
 - **Export** : la vérification du niveau (LUFS, true peak) avant d'exporter.

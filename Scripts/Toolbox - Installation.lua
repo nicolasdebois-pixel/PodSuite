@@ -1,10 +1,10 @@
--- PodSuite - Installer.lua — « PodSuite - Installer »
+-- Toolbox - Installation.lua — « Toolbox - Installation »
 -- À lancer une fois après l'installation par ReaPack (et à relancer sans risque à tout moment).
 -- Installe Whisper et un modèle, enregistre les réglages, aide à activer l'interface web, puis teste tout.
 local dir = ({ reaper.get_action_context() })[2]:match("^(.*[/\\])")
-local P = dofile(dir .. "PodSuite_lib.lua")
+local P = dofile(dir .. "Toolbox_lib.lua")
 
-local TITLE = "PodSuite — Installation"
+local TITLE = "Podcast & ADR Toolbox — Installation"
 local RES = P.RES
 local HF = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/"
 local WIN_ZIP = "https://github.com/ggml-org/whisper.cpp/releases/latest/download/whisper-bin-x64.zip"
@@ -18,7 +18,7 @@ local MODELS = {
 
 ---------------------------------------------------------------- Étapes affichées
 local steps = {
-  { id = "files", label = "Fichiers PodSuite" },
+  { id = "files", label = "Fichiers de la boîte à outils" },
   { id = "whisper", label = "Whisper" },
   { id = "model", label = "Modèle de transcription" },
   { id = "settings", label = "Réglages" },
@@ -36,7 +36,7 @@ gfx.init(TITLE, W, H)
 local function draw()
   gfx.set(0.1, 0.105, 0.12); gfx.rect(0, 0, gfx.w, gfx.h, 1)
   gfx.setfont(1, "Arial", 20, string.byte("b")); gfx.set(0.95, 0.95, 0.95)
-  gfx.x, gfx.y = 24, 18; gfx.drawstr("Installation de PodSuite")
+  gfx.x, gfx.y = 24, 18; gfx.drawstr("Installation de Podcast & ADR Toolbox")
   gfx.setfont(2, "Arial", 15)
   local y = 60
   for _, s in ipairs(steps) do
@@ -128,7 +128,7 @@ local function step_files()
   set("files", "doing")
   reaper.RecursiveCreateDirectory(RES, 0)
   if P.install_page() then set("files", "ok", "version " .. P.VERSION)
-  else set("files", "fail", "page introuvable"); abort("Le fichier podsuite.html manque : réinstallez PodSuite depuis ReaPack.") end
+  else set("files", "fail", "page introuvable"); abort("Le fichier derushage.html manque : réinstallez la boîte à outils depuis ReaPack.") end
 end
 
 ---------------------------------------------------------------- Étape 2 : Whisper
@@ -147,7 +147,7 @@ local function step_whisper()
         local copied = clipboard(BREW_INSTALL)
         reaper.MB("Sur Mac, Whisper s'installe avec Homebrew, qui n'est pas encore présent.\n\n" ..
           "1. Ouvrez l'application Terminal.\n2. Collez cette commande" .. (copied and " (elle est déjà copiée)" or "") .. " puis Entrée :\n\n" ..
-          BREW_INSTALL .. "\n\n3. Suivez les instructions (mot de passe du Mac demandé).\n4. Relancez « PodSuite - Installer ».", TITLE, 0)
+          BREW_INSTALL .. "\n\n3. Suivez les instructions (mot de passe du Mac demandé).\n4. Relancez « Toolbox - Installation ».", TITLE, 0)
         abort("Installez Homebrew puis relancez l'installation.")
       end
       if reaper.MB("Whisper va être installé avec Homebrew.\nCela prend quelques minutes, REAPER reste utilisable.\n\nContinuer ?", TITLE, 1) ~= 1 then abort("Installation annulée.") end
@@ -319,15 +319,15 @@ local function main()
   step_settings(); y()
   step_web(); y()
   step_test()
-  status_line = "PodSuite est prêt."
+  status_line = "La boîte à outils est prête."
   progress = nil
   draw()
   local warn = S.web.state ~= "ok"
-  reaper.MB("PodSuite est prêt" .. (warn and " (interface web à vérifier)" or "") .. ".\n\n" ..
+  reaper.MB("La boîte à outils est prête" .. (warn and " (interface web à vérifier)" or "") .. ".\n\n" ..
     "Pour travailler :\n" ..
     "1. Enregistrez votre projet.\n" ..
-    "2. Lancez « PodSuite - Serveur » (laissez-le tourner).\n" ..
-    "3. Sélectionnez les items des intervenants, puis « PodSuite - Transcrire ».\n" ..
+    "2. Lancez « Toolbox - Serveur de derushage » (laissez-le tourner).\n" ..
+    "3. Sélectionnez les items des intervenants, puis « Toolbox - Transcrire ».\n" ..
     "4. Ouvrez la page de dérushage : " .. P.web_url() .. "\n\n" ..
     "Astuce : ajoutez ces actions à une barre d'outils (clic droit sur une barre › Customize toolbar).", TITLE, 0)
   gfx.quit()

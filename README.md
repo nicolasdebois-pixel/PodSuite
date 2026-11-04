@@ -2,7 +2,7 @@
 
 Boîte à outils gratuite pour REAPER (Mac et Windows). Tout se passe sur votre ordinateur : l'audio ne part nulle part.
 
-- **PodSuite** : transcription mot par mot avec Whisper, détection du clicker, montage par le texte.
+- **Dérushage** : transcription mot par mot avec Whisper, détection du clicker, montage par le texte.
 - **Vocal level & de-esser** : niveau régulier, sifflantes, plosives, voix trop proche, équilibre tonal.
 - **Montage** : ripple sur les bords des items.
 - **Export** : contrôle du niveau (LUFS, true peak) avec correction automatique.
@@ -24,9 +24,9 @@ Une seule action à retenir : **Podcast & ADR Toolbox**. Elle ouvre une fenêtre
 
 
 1. Enregistrez le projet REAPER.
-2. Lancez **PodSuite - Serveur** et laissez-le tourner.
-3. Une fois : placez le curseur juste avant un clic dans vos rushes, sélectionnez la piste, puis **PodSuite - Calibrer le clicker**.
-4. Sélectionnez les items des intervenants, un par piste, puis **PodSuite - Transcrire**.
+2. Lancez **Toolbox - Serveur de derushage** et laissez-le tourner.
+3. Une fois : placez le curseur juste avant un clic dans vos rushes, sélectionnez la piste, puis **Toolbox - Calibrer le clicker**.
+4. Sélectionnez les items des intervenants, un par piste, puis **Toolbox - Transcrire**.
 5. Ouvrez la page de dérushage, à l'adresse indiquée à la fin de la transcription.
 
 ### Le code du clicker
@@ -40,12 +40,12 @@ le montage depuis les rushes à chaque modification. Les rushes ne sont jamais m
 Le sélecteur **Montage / Rushes** de la page choisit ce que REAPER fait entendre.
 
 ## Contrôle du niveau avant l'export
-Action **PodSuite - Controle du niveau** (REAPER 6.71 ou plus récent).
+Action **Toolbox - Controle du niveau** (REAPER 6.71 ou plus récent).
 1. Choisissez la norme : **Podcast (Apple, autres)** = −16 LUFS intégrés (± 1 LU), true peak max −1 dBTP ;
    **Podcast (Spotify)** = −14 LUFS intégrés (± 1 LU), true peak max −1 dBTP.
 2. Cliquez sur **Mesurer** : REAPER lit tout le mix du master (plus vite que le temps réel) sans créer de fichier.
 3. L'outil affiche la loudness intégrée, le true peak et l'écart de volume (LRA), dit si c'est conforme et propose des pistes.
-4. **Corriger automatiquement** place « PodSuite limiter » (limiteur true peak) en fin de chaîne du master,
+4. **Corriger automatiquement** place « Toolbox limiter » (limiteur true peak) en fin de chaîne du master,
    règle son gain et son plafond, puis remesure jusqu'à être dans la norme. **Retirer le limiteur** annule tout.
 
 Conseil : si le limiteur doit réduire les crêtes de plus de 6 dB, régularisez d'abord la voix

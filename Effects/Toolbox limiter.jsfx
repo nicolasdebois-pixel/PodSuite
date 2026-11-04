@@ -1,7 +1,7 @@
-desc:PodSuite limiter (true peak)
+desc:Toolbox limiter (true peak)
 //tags: limiter loudness true-peak podcast
 //author: Nicolas Debois
-// Limiteur « true peak » piloté par l'outil « PodSuite - Vérifier le niveau d'export ».
+// Limiteur « true peak » piloté par l'outil « Toolbox - Controle du niveau ».
 // Gain d'entrée, puis limitation avec anticipation de 1,5 ms : les crêtes entre échantillons
 // (estimées par sur-échantillonnage x4) ne dépassent jamais le plafond.
 slider1:gain_db=0<-24,24,0.1>Gain (dB)

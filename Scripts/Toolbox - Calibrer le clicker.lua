@@ -1,10 +1,10 @@
--- PodSuite - Calibrer le clicker.lua
+-- Toolbox - Calibrer le clicker.lua
 -- Apprend le son de VOTRE clicker, pour le reconnaître ensuite dans les enregistrements.
 -- Le plus simple : placez le curseur d'édition juste avant un clic, sélectionnez la piste, lancez le script.
 -- (Une sélection temporelle autour d'un clic fonctionne aussi.)
 local dir = ({ reaper.get_action_context() })[2]:match("^(.*[/\\])")
-local P = dofile(dir .. "PodSuite_lib.lua")
-local TITLE = "PodSuite — Calibrer le clicker"
+local P = dofile(dir .. "Toolbox_lib.lua")
+local TITLE = "Podcast & ADR Toolbox — Calibrer le clicker"
 
 local tr = reaper.GetSelectedTrack(0, 0)
 if not tr and reaper.CountSelectedMediaItems(0) > 0 then tr = reaper.GetMediaItem_Track(reaper.GetSelectedMediaItem(0, 0)) end
@@ -37,4 +37,4 @@ if reaper.MB(string.format("Clic trouvé à %d:%05.2f (le curseur y est placé).
     TITLE, 4) ~= 6 then return end
 P.set("click_template", tpl)
 P.set("click_gap", string.format("%.3f", gap))
-reaper.MB("Clicker calibré.\n\nRelancez « PodSuite - Transcrire » : les clics seront détectés et apparaîtront dans la page de dérushage.", TITLE, 0)
+reaper.MB("Clicker calibré.\n\nRelancez « Toolbox - Transcrire » : les clics seront détectés et apparaîtront dans la page de dérushage.", TITLE, 0)

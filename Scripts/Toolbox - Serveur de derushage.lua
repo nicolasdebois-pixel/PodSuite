@@ -1,11 +1,11 @@
--- PodSuite - Serveur.lua
+-- Toolbox - Serveur de derushage.lua
 -- À laisser tourner pendant le travail (bouton de barre d'outils) :
---  • publie la transcription du projet actif vers la page podsuite.html ;
+--  • publie la transcription du projet actif vers la page derushage.html ;
 --  • enregistre les passages barrés et les suggestions ignorées depuis la page ;
 --  • construit le MONTAGE dans REAPER : une piste « ✂ Intervenant » par intervenant, reconstruite
 --    depuis les rushes (jamais modifiés) à chaque changement. Les coupes sont placées dans les silences.
 local dir = ({ reaper.get_action_context() })[2]:match("^(.*[/\\])")
-local P = dofile(dir .. "PodSuite_lib.lua")
+local P = dofile(dir .. "Toolbox_lib.lua")
 
 local XF = 0.012                 -- fondu enchaîné à chaque coupe (12 ms)
 local cur_fn, data, datafile = nil, nil, nil
@@ -287,7 +287,7 @@ local function build_montage()
   reaper.SetExtState(P.SECTION, "mapver", tostring(reaper.time_precise()), false)
   if skipped and not warned_source then
     warned_source = true
-    reaper.MB("Certains items des rushes n'ont pas de fichier audio direct (item découpé en section, inversé…).\nIls ne figurent pas dans le montage : appliquez « Glue » sur ces items puis relancez.", "PodSuite", 0)
+    reaper.MB("Certains items des rushes n'ont pas de fichier audio direct (item découpé en section, inversé…).\nIls ne figurent pas dans le montage : appliquez « Glue » sur ces items puis relancez.", "Podcast & ADR Toolbox", 0)
   end
 end
 
@@ -327,7 +327,7 @@ local function loop()
     reaper.PreventUIRefresh(1); apply_listen(listen); reaper.PreventUIRefresh(-1); reaper.UpdateArrange()
   end
 
-  if reaper.GetExtState(P.SECTION, "stop_server") == "1" then      -- arrêt demandé depuis la fenêtre PodSuite
+  if reaper.GetExtState(P.SECTION, "stop_server") == "1" then      -- arrêt demandé depuis la fenêtre principale
     reaper.DeleteExtState(P.SECTION, "stop_server", false)
     return
   end

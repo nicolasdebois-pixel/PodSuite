@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>PodSuite · Dérushage</title>
+<title>Dérushage · Podcast &amp; ADR Toolbox</title>
 <style>
 /* Mise en page : transport + vue d'ensemble de l'épisode en haut ; transcription à gauche ; file « À traiter » à droite */
 :root{
@@ -167,7 +167,7 @@ kbd{font:600 0.6875rem var(--mono);padding:1px 0.3125rem;border-radius:0.25rem;b
     <button class="play" id="play" aria-label="Lecture ou arrêt (espace)" title="Lecture / arrêt (espace)"></button>
     <div class="clock">
       <div class="tc" id="tc">0:00:00<small>.0</small></div>
-      <div class="proj" id="proj">PodSuite</div>
+      <div class="proj" id="proj">Podcast &amp; ADR Toolbox</div>
     </div>
     <div class="listen off" id="listen" role="radiogroup" aria-label="Ce que REAPER fait entendre">
       <button id="l-edit" role="radio" aria-checked="true" title="REAPER lit les pistes ✂ (le montage)">Montage</button>
@@ -419,9 +419,9 @@ function render(){
   const main = $('main'); main.textContent = ''; spans = []; sel = null; anchor = -1; $('selbar').hidden = true;
   if (!D || D.empty || !words.length){
     main.innerHTML = `<div class="empty"><h2>Pas encore de transcription</h2>
-      <p>Dans REAPER, sélectionnez les items des intervenants (un par piste), puis lancez <b>PodSuite - Transcrire</b>.
+      <p>Dans REAPER, sélectionnez les items des intervenants (un par piste), puis lancez <b>Toolbox - Transcrire</b>.
       Le texte apparaîtra ici tout seul.</p></div>`;
-    $('proj').textContent = (D && D.project) || 'PodSuite';
+    $('proj').textContent = (D && D.project) || 'Podcast & ADR Toolbox';
     renderSide(); drawOverviewStatic(); return;
   }
   $('proj').textContent = `${D.project || ''} · transcrit le ${D.created || ''}`;
@@ -502,7 +502,7 @@ function renderSide(){
   byTime().forEach(ci => (isOpen(ci) ? open : closed).push(ci));
   $('qcount').textContent = open.length; $('qcount').classList.toggle('zero', !open.length);
   const q = $('queue'); q.textContent = '';
-  if (!open.length) q.innerHTML = `<div class="qempty">${clicks.length ? 'Tout est traité.' : (D && D.calibrated === false ? `<b>Le clicker n'est pas encore calibré.</b><ol class="howto"><li>Dans REAPER, placez le curseur juste avant un clic dans vos rushes.</li><li>Sélectionnez cette piste et lancez <b>PodSuite - Calibrer le clicker</b>.</li><li>Relancez <b>PodSuite - Transcrire</b>.</li></ol>` : 'Aucun clic détecté.')}</div>`;
+  if (!open.length) q.innerHTML = `<div class="qempty">${clicks.length ? 'Tout est traité.' : (D && D.calibrated === false ? `<b>Le clicker n'est pas encore calibré.</b><ol class="howto"><li>Dans REAPER, placez le curseur juste avant un clic dans vos rushes.</li><li>Sélectionnez cette piste et lancez <b>Toolbox - Calibrer le clicker</b>.</li><li>Relancez <b>Toolbox - Transcrire</b>.</li></ol>` : 'Aucun clic détecté.')}</div>`;
   for (const ci of open) q.appendChild(qItem(ci));
   const qd = $('queuedone'); qd.textContent = '';
   for (const ci of closed) qd.appendChild(qItem(ci));
@@ -809,7 +809,7 @@ function frame(now){
   $('t-srv').textContent = alive ? 'Modifications enregistrées' : 'Serveur arrêté';
   const ban = $('banner');
   const msg = !srv.ok ? "REAPER ne répond pas. Vérifiez qu'il est ouvert et que cette page est ouverte via son interface web."
-            : (!alive ? "Le script PodSuite - Serveur ne tourne pas : vos modifications ne seront pas enregistrées. Lancez-le dans REAPER." : '');
+            : (!alive ? "Le script Toolbox - Serveur de derushage ne tourne pas : vos modifications ne seront pas enregistrées. Lancez-le dans REAPER." : '');
   if (ban.textContent !== msg){ ban.textContent = msg; ban.hidden = !msg; }
   requestAnimationFrame(frame);
 }
