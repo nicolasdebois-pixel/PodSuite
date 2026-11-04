@@ -1104,11 +1104,11 @@ local function page_rec(x, y, w)
       end
       if n == 0 then msg = "Aucune piste « Prises - … » dans ce projet."
       else
-        reaper.GetSetProjectInfo(0, "RENDER_SETTINGS", 2, true)          -- pistes sélectionnées, une par fichier
+        reaper.GetSetProjectInfo(0, "RENDER_SETTINGS", 3, true)          -- source « Stems (selected tracks) » : un fichier par piste
         reaper.GetSetProjectInfo(0, "RENDER_BOUNDSFLAG", 1, true)
         reaper.GetSetProjectInfo_String(0, "RENDER_PATTERN", "$project - $track", true)
         reaper.Main_OnCommand(40015, 0)
-        msg = string.format("%d piste%s de prises sélectionnée%s : la fenêtre d'export est réglée sur « une piste par fichier » (WAV conseillé pour le mixage).", n, n > 1 and "s" or "", n > 1 and "s" or "")
+        msg = string.format("%d piste%s de prises sélectionnée%s. Dans la fenêtre d'export, « Source » doit indiquer « Stems (selected tracks) » : un fichier par personnage (WAV 24 bits conseillé). Ne changez pas la sélection des pistes avant de cliquer sur « Render ».", n, n > 1 and "s" or "", n > 1 and "s" or "")
       end
     end
     y = y + 40

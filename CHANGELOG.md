@@ -1,5 +1,8 @@
 # Nouveautés de Podcast & ADR Toolbox
 
+## 0.10.2 — 04/11/2026
+- Correction : « Exporter une piste par personnage » règle bien la source d'export sur « Stems (selected tracks) » (un fichier par personnage) au lieu du master
+
 ## 0.10.1 — 04/11/2026
 - Enregistrement : l'option « Boucle » s'appelle maintenant « Répéter avant d'enregistrer » (expliquée dans l'aide « ? »)
 
