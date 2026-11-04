@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<index version="1" name="Podcast &amp; ADR Toolbox" commit="65d1e7ba0565dfc4f20d350ce5185c07c2934968">
+<index version="1" name="Podcast &amp; ADR Toolbox" commit="7c64f9d9f3a82245e123ee0c0eebecce44312a7c">
   <category name="Toolbox">
     <reapack name="Podcast &amp; ADR Toolbox" type="script" desc="Podcast &amp; ADR Toolbox">
       <version name="0.7.0" author="Nicolas Debois" time="2026-11-04T10:28:14Z">
