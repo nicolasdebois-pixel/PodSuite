@@ -2,7 +2,7 @@
 -- (ne pas lancer directement : chargé par les autres scripts)
 
 local P = {}
-P.VERSION = "0.10.0"
+P.VERSION = "0.10.1"
 P.SECTION = "PODSUITE"
 P.WIN = reaper.GetOS():find("Win") ~= nil
 P.SEP = P.WIN and "\\" or "/"

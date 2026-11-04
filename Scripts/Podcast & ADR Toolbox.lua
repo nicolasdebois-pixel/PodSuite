@@ -1079,7 +1079,7 @@ local function page_rec(x, y, w)
   cx = x
   cx = cx + toggle("Bips", "bips", "1", cx) + 6
   if expert() then
-  if A.get("rec_mode", "line") ~= "free" then cx = cx + toggle("Boucle", "loop", "0", cx) + 6 end
+  if A.get("rec_mode", "line") ~= "free" then cx = cx + toggle("Répéter avant d'enregistrer", "loop", "0", cx) + 6 end
   cx = cx + toggle("Suivante après la prise", "auto_next", "1", cx) + 18
   y = y + 38; cx = x
   text("Pré-roll", cx, y + 7, COL.muted, 2); cx = cx + 70
@@ -1149,6 +1149,7 @@ local HELP = {
     "Ouvrez la bande sur l'écran de la cabine (ou la tablette). Le comédien voit l'image, la réplique à dire en entier, puis la bande qui défile.",
     "Choisissez le personnage, puis Précédente / Suivante pour vous placer. Écouter (vert) pour répéter, Enregistrer (rouge) pour la prise.",
     "Double bip avant la réplique : « bip, bip, top », on parle au troisième temps.",
+    "« Répéter avant d'enregistrer » : avec « Écouter », la réplique est rejouée en boucle (pré-roll compris) jusqu'à « Arrêter », pour que le comédien cale son rythme. Sans effet pendant l'enregistrement.",
     "Chaque passage crée une prise sur la piste « Prises - Personnage ». En continu : enchaîner plusieurs répliques jusqu'à « Arrêter »." } },
 }
 local help_open = false

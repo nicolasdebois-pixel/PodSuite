@@ -1,5 +1,8 @@
 # Nouveautés de Podcast & ADR Toolbox
 
+## 0.10.1 — 04/11/2026
+- Enregistrement : l'option « Boucle » s'appelle maintenant « Répéter avant d'enregistrer » (expliquée dans l'aide « ? »)
+
 ## 0.10.0 — 04/11/2026
 - Export : quand on fait du doublage, les normes proposées sont celles de l'audiovisuel — télévision (EBU R128, −23 LUFS ± 0,5, true peak −1), Netflix (−27 LUFS dialogues ± 2, true peak −2), web / YouTube (−14 LUFS) ; « les deux » affiche toutes les normes
 - Export pour le doublage réglé en 48 kHz ; conseil de livraison des voix seules (une piste par personnage)
