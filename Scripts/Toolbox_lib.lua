@@ -2,7 +2,7 @@
 -- (ne pas lancer directement : chargé par les autres scripts)
 
 local P = {}
-P.VERSION = "0.4.0"
+P.VERSION = "0.9.5"
 P.SECTION = "PODSUITE"
 P.WIN = reaper.GetOS():find("Win") ~= nil
 P.SEP = P.WIN and "\\" or "/"
@@ -447,18 +447,21 @@ end
 
 ---------------------------------------------------------------- Fenêtre de progression
 function P.progress(title)
-  gfx.init(title, 460, 96)
+  local U = dofile(P.DIR .. "Toolbox_ui.lua")
+  U.init(title, 460, 96)
   local W = {}
   function W.draw(frac, line)
-    gfx.set(0.09, 0.09, 0.1); gfx.rect(0, 0, gfx.w, gfx.h, 1)
+    gfx.set(0.09, 0.09, 0.1); gfx.rect(0, 0, 460, 96, 1)
     gfx.setfont(1, "Arial", 16); gfx.set(0.92, 0.92, 0.9)
     gfx.x, gfx.y = 16, 14; gfx.drawstr(line or "")
-    gfx.set(0.2, 0.2, 0.23); gfx.rect(16, 48, gfx.w - 32, 14, 1)
-    gfx.set(0.94, 0.66, 0.23); gfx.rect(16, 48, math.floor((gfx.w - 32) * math.max(0, math.min(1, frac))), 14, 1)
+    gfx.set(0.2, 0.2, 0.23); gfx.rect(16, 48, 428, 14, 1)
+    gfx.set(0.94, 0.66, 0.23); gfx.rect(16, 48, math.floor((428) * math.max(0, math.min(1, frac))), 14, 1)
     gfx.setfont(1, "Arial", 13); gfx.set(0.55, 0.55, 0.6)
     gfx.x, gfx.y = 16, 70; gfx.drawstr("Fermer la fenêtre pour annuler")
     gfx.update()
-    return gfx.getchar() >= 0
+    local alive = gfx.getchar() >= 0
+    U.frame()
+    return alive
   end
   function W.close() gfx.quit() end
   return W

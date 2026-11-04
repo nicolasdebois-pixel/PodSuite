@@ -180,6 +180,10 @@ reaper.atexit(function()
   if bt then reaper.SetMediaTrackInfo_Value(bt, "B_MUTE", 1) end
   if VID.job then VID.job.i:close(); VID.job.o:close(); os.remove(VID.job.full .. ".part") end
   reaper.DeleteExtState(SEC, "video", false)
+  if reaper.GetExtState(SEC, "punch_on") == "1" then                -- on rend à REAPER son mode d'enregistrement normal
+    local n = A.cmd("normal"); if n then reaper.Main_OnCommand(n, 0) end
+    reaper.DeleteExtState(SEC, "punch_on", false)
+  end
 end)
 P.install_page("doublage.html")
 publish()

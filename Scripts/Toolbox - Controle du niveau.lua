@@ -260,7 +260,8 @@ end
 
 ---------------------------------------------------------------- Interface
 local W, H = 660, 680
-gfx.init(TITLE, W, H)
+local U = dofile(scriptdir .. "Toolbox_ui.lua")
+U.init(TITLE, W, H)
 local COL = {
   bg = { 0.10, 0.105, 0.12 }, panel = { 0.14, 0.15, 0.17 }, text = { 0.93, 0.93, 0.93 }, muted = { 0.6, 0.62, 0.67 },
   accent = { 0.97, 0.6, 0.22 }, line = { 0.24, 0.25, 0.28 }, ok = { 0.3, 0.8, 0.5 }, bad = { 0.95, 0.42, 0.32 },
@@ -347,7 +348,7 @@ local function tile(x, y, w, h, label, value, sub, ok)
 end
 
 local function draw()
-  col(COL.bg); gfx.rect(0, 0, gfx.w, gfx.h, 1)
+  col(COL.bg); gfx.rect(0, 0, U.W(), U.H(), 1)
   local x, w = 24, W - 48
   text("Contrôle du niveau d'export", x, 18, COL.text, 3)
   text("Mesure le mix du master tel qu'il sera exporté, avant d'exporter.", x, 46, COL.muted, 2)
@@ -403,6 +404,7 @@ end
 
 local function loop()
   local ch = gfx.getchar()
+  U.frame()
   if ch < 0 or ch == 27 then save(); gfx.quit(); return end
   local cap = gfx.mouse_cap
   if ch == 32 then reaper.Main_OnCommand(40044, 0)

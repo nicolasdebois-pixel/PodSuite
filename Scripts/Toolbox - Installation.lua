@@ -32,9 +32,10 @@ local function set(id, state, info) S[id].state = state; S[id].info = info or S[
 
 ---------------------------------------------------------------- Fenêtre
 local W, H = 600, 330
-gfx.init(TITLE, W, H)
+local U = dofile(dir .. "Toolbox_ui.lua")
+U.init(TITLE, W, H)
 local function draw()
-  gfx.set(0.1, 0.105, 0.12); gfx.rect(0, 0, gfx.w, gfx.h, 1)
+  gfx.set(0.1, 0.105, 0.12); gfx.rect(0, 0, U.W(), U.H(), 1)
   gfx.setfont(1, "Arial", 20, string.byte("b")); gfx.set(0.95, 0.95, 0.95)
   gfx.x, gfx.y = 24, 18; gfx.drawstr("Installation de Podcast & ADR Toolbox")
   gfx.setfont(2, "Arial", 15)
@@ -52,8 +53,8 @@ local function draw()
   end
   gfx.set(0.85, 0.85, 0.85); gfx.x, gfx.y = 24, H - 62; gfx.drawstr(status_line)
   if progress then
-    gfx.set(0.22, 0.23, 0.26); gfx.rect(24, H - 34, gfx.w - 48, 10, 1)
-    gfx.set(0.98, 0.6, 0.2); gfx.rect(24, H - 34, math.floor((gfx.w - 48) * math.max(0, math.min(1, progress))), 10, 1)
+    gfx.set(0.22, 0.23, 0.26); gfx.rect(24, H - 34, U.W() - 48, 10, 1)
+    gfx.set(0.98, 0.6, 0.2); gfx.rect(24, H - 34, math.floor((U.W() - 48) * math.max(0, math.min(1, progress))), 10, 1)
   end
   gfx.update()
 end
@@ -336,10 +337,12 @@ end
 local co = coroutine.create(main)
 local function idle()                              -- après un arrêt : la fenêtre reste lisible jusqu'à sa fermeture
   if gfx.getchar() < 0 then return end
+  U.frame()
   draw(); reaper.defer(idle)
 end
 local function tick()
   if gfx.getchar() < 0 then return end           -- fenêtre fermée : on arrête
+  U.frame()
   local ok, err = coroutine.resume(co)
   if not ok then
     if not tostring(err):find("__abort__") then

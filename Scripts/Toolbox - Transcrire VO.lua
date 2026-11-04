@@ -105,7 +105,8 @@ function wait_whisper()
 end
 
 ---------------------------------------------------------------- 3. Traduction (MyMemory) ligne par ligne
-local tr_state, quota = nil, false
+local tr_state, quota, tr_error = nil, false, nil
+local EMAIL, DEEPL = A.get("tr_email", ""), A.get("deepl_key", "")
 local function need_mt() return target ~= "" and target ~= "en" and vo_lang and vo_lang ~= target end
 function translate_next(k)
   if not need_mt() or quota or k > #segments then finish(); return end
@@ -115,9 +116,16 @@ function translate_next(k)
     P.write_file(qf, seg.text)
     os.remove(of)
     local curl = P.WIN and "curl.exe" or "curl"
-    reaper.ExecProcess(shell(curl .. " -s -m 20 -G https://api.mymemory.translated.net/get --data-urlencode " .. q("q@" .. qf) ..
-      " --data-urlencode " .. q("langpair=" .. vo_lang .. "|" .. target) .. " -o " .. q(of .. ".part") ..
-      (P.WIN and " && move /Y " or " && mv ") .. q(of .. ".part") .. " " .. q(of)), -1)
+    local req
+    if DEEPL ~= "" then                                    -- DeepL Free : clé personnelle, 500 000 caractères par mois
+      local host = DEEPL:find(":fx$") and "https://api-free.deepl.com" or "https://api.deepl.com"
+      req = curl .. " -s -m 20 -X POST " .. host .. "/v2/translate -H " .. q("Authorization: DeepL-Auth-Key " .. DEEPL) ..
+        " --data-urlencode " .. q("text@" .. qf) .. " --data-urlencode " .. q("target_lang=" .. target:upper())
+    else                                                   -- MyMemory : gratuit ; l'e-mail multiplie la limite par 10
+      req = curl .. " -s -m 20 -G https://api.mymemory.translated.net/get --data-urlencode " .. q("q@" .. qf) ..
+        " --data-urlencode " .. q("langpair=" .. vo_lang .. "|" .. target) .. (EMAIL ~= "" and (" --data-urlencode " .. q("de=" .. EMAIL)) or "")
+    end
+    reaper.ExecProcess(shell(req .. " -o " .. q(of .. ".part") .. (P.WIN and " && move /Y " or " && mv ") .. q(of .. ".part") .. " " .. q(of)), -1)
     tr_state = reaper.time_precise()
   end
   if not ui.draw(0.75 + 0.25 * k / #segments, string.format("Traduction en %s… %d / %d", LANG_NAMES[target] or target, k, #segments)) then ui.close(); return end
@@ -127,6 +135,12 @@ function translate_next(k)
     local ok, d = pcall(P.json_decode, res)
     local t = ok and type(d) == "table" and d.responseData and d.responseData.translatedText
     local status = ok and type(d) == "table" and tonumber(d.responseStatus)
+    if ok and type(d) == "table" and type(d.translations) == "table" and d.translations[1] then   -- réponse DeepL
+      t, status = d.translations[1].text, 200; d.responseStatus = 200
+    elseif ok and type(d) == "table" and type(d.message) == "string" then                      -- erreur DeepL
+      if d.message:lower():find("quota") then quota = true else tr_error = d.message end
+      t = nil
+    end
     if (type(t) == "string" and t:find("MYMEMORY WARNING", 1, true)) or status == 429 or status == 403 then quota = true
     elseif type(t) == "string" and t ~= "" and tonumber(d.responseStatus) == 200 then
       seg.tr = t:gsub("&#(%d+);", function(n) return utf8.char(tonumber(n)) end):gsub("&quot;", '"'):gsub("&apos;", "'"):gsub("&lt;", "<"):gsub("&gt;", ">"):gsub("&amp;", "&")
@@ -156,7 +170,8 @@ function finish()
   if target == "en" then msg = msg .. ", traduites en anglais par Whisper"
   elseif need_mt() then
     msg = msg .. string.format(", dont %d traduites en %s", ntr, LANG_NAMES[target] or target)
-    if quota then msg = msg .. ".\n\nLe quota gratuit de traduction du jour est atteint : les autres répliques sont restées en version originale" end
+    if quota then msg = msg .. ".\n\nLa limite gratuite de traduction est atteinte : les autres répliques sont restées en version originale. Dans la page Répliques, « Réglages de traduction » : ajoutez votre e-mail (limite × 10) ou une clé DeepL gratuite" end
+    if tr_error then msg = msg .. ".\n\nDeepL a répondu : " .. tr_error .. " (vérifiez la clé dans « Réglages de traduction »)" end
     if ntr == 0 and not quota then msg = msg .. ".\n\nLa traduction n'a pas répondu (connexion internet ?) : les répliques sont en version originale" end
   elseif target ~= "" and vo_lang == target then msg = msg .. " (la VO est déjà en " .. (LANG_NAMES[target] or target) .. ")" end
   reaper.MB(msg .. ".\n\nAttribuez-les ensuite aux personnages : page Répliques, sélectionnez les items puis cliquez sur le personnage.", TITLE, 0)

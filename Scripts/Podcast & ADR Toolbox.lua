@@ -112,7 +112,8 @@ end
 ---------------------------------------------------------------- Interface
 local W, H = 860, 680
 local dock = tonumber(reaper.GetExtState(SEC, "hub_dock")) or 0
-gfx.init(TITLE, W, H, dock)
+local U = dofile(dir .. "Toolbox_ui.lua")
+U.init(TITLE, W, H, dock)
 local COL = {
   bg = { 0.10, 0.105, 0.12 }, side = { 0.075, 0.08, 0.09 }, panel = { 0.14, 0.15, 0.17 }, text = { 0.93, 0.93, 0.93 },
   muted = { 0.6, 0.62, 0.67 }, accent = { 0.97, 0.6, 0.22 }, line = { 0.24, 0.25, 0.28 }, ok = { 0.3, 0.8, 0.5 }, bad = { 0.95, 0.42, 0.32 },
@@ -149,6 +150,15 @@ end
 local function status_dot(x, y, ok)
   col(ok and COL.ok or COL.bad); gfx.circle(x, y, 5, 1, 1)
 end
+local function chip(label, x, y, color, active)
+  gfx.setfont(4); local w = gfx.measurestr(label) + (color and 38 or 26)
+  local over = hit(x, y, w, 28)
+  col(active and COL.panel or COL.bg); gfx.rect(x, y, w, 28, 1)
+  col(active and COL.accent or COL.line); gfx.rect(x, y, w, 28, 0)
+  if color then gfx.set(color[1] / 255, color[2] / 255, color[3] / 255); gfx.circle(x + 14, y + 14, 5, 1, 1) end
+  gfx.setfont(4); col((active or over) and COL.text or COL.muted); gfx.x, gfx.y = x + (color and 26 or 13), y + 7; gfx.drawstr(label)
+  return w, clicked and over
+end
 
 local PAGES = {
   { id = "home", name = "Accueil" },
@@ -162,7 +172,17 @@ local PAGES = {
 }
 local page = reaper.GetExtState(SEC, "hub_page"); if page == "" then page = "home" end
 local msg = ""
-local function go(id) page = id; reaper.SetExtState(SEC, "hub_page", id, true); msg = "" end
+-- le doublage passe REAPER en « auto-punch » : on remet le mode normal dès qu'on quitte la page Enregistrement
+local function restore_record_mode()
+  if reaper.GetExtState(A.SEC, "punch_on") == "1" then
+    local n = A.cmd("normal"); if n then reaper.Main_OnCommand(n, 0) end
+    reaper.DeleteExtState(A.SEC, "punch_on", false)
+  end
+end
+local function go(id)
+  if page == "rec" and id ~= "rec" then restore_record_mode() end
+  page = id; reaper.SetExtState(SEC, "hub_page", id, true); msg = ""
+end
 
 ---------------------------------------------------------------- Pages
 local function header(x, y, w, title, sub)
@@ -263,6 +283,33 @@ local function page_voice(x, y, w)
   end
 end
 
+-- ripple sur les bords relancé à chaque démarrage de REAPER (bloc ajouté au fichier __startup.lua de REAPER)
+local MARK1, MARK2 = "-- >>> Podcast & ADR Toolbox : ripple sur les bords au démarrage", "-- <<< Podcast & ADR Toolbox"
+local function startup_path() return reaper.GetResourcePath() .. P.SEP .. "Scripts" .. P.SEP .. "__startup.lua" end
+local auto_cache
+function autostart_on()
+  if auto_cache == nil then auto_cache = (P.read_file(startup_path()) or ""):find(MARK1, 1, true) ~= nil end
+  return auto_cache
+end
+function set_autostart(on)
+  local path = startup_path()
+  local s = P.read_file(path) or ""
+  local a = s:find(MARK1, 1, true)
+  if a then
+    local _, b = s:find(MARK2, a, true)
+    s = (s:sub(1, a - 1):gsub("\n+$", "")) .. (b and s:sub(b + 1) or "")
+  end
+  if on then
+    local cmd = cmd_of(own("ripple"))
+    local named = cmd and reaper.ReverseNamedCommandLookup(cmd)
+    if named and named ~= "" then
+      s = (s:gsub("%s+$", "")) .. (s ~= "" and "\n\n" or "") .. MARK1 .. "\nlocal id = reaper.NamedCommandLookup(\"_" .. named .. "\")\nif id ~= 0 then reaper.Main_OnCommand(id, 0) end\n" .. MARK2 .. "\n"
+    end
+  end
+  P.write_file(path, s)
+  auto_cache = nil
+end
+
 local function page_cut(x, y, w)
   y = header(x, y, w, "Montage", "Le ripple editing fait suivre la suite du montage quand on supprime ou déplace un item. La boîte à outils ajoute le ripple sur les bords, et l'aimantation garde les items collés les uns aux autres.")
   -- aimantation
@@ -294,8 +341,12 @@ local function page_cut(x, y, w)
   text("Ripple sur les bords des items", x, y + 14, COL.text, 5)
   local on = is_on(own("ripple"))
   if button(on and "Activé" or "Désactivé", x + w - 150, y + 12, 150, 30, false, on) then
-    if on then reaper.SetExtState(SEC, "ripple_stop", "1", false) else run(own("ripple")) end
+    if on then reaper.SetExtState(SEC, "ripple_stop", "1", false); set_autostart(false)
+    else run(own("ripple")); set_autostart(true) end
   end
+  local auto = autostart_on()
+  local _, ac = chip((auto and "✓ " or "") .. "Au démarrage de REAPER", x + w - 150 - 236, y + 13, nil, auto)
+  if ac then set_autostart(not auto) end
   y = wrap("Pendant que vous tirez un bord, les voisins se décalent en direct, de la même valeur : bord droit, tout ce qui suit ; bord gauche, tout ce qui précède. Aucun fondu n'est ajouté. Même portée que le ripple de REAPER (la piste, ou toutes les pistes).", x, y + 48, w - 24, COL.muted, 2) + 10
 end
 
@@ -320,15 +371,6 @@ local function adr_data()                                  -- personnages et ré
   return adr_cache
 end
 
-local function chip(label, x, y, color, active)
-  gfx.setfont(4); local w = gfx.measurestr(label) + (color and 38 or 26)
-  local over = hit(x, y, w, 28)
-  col(active and COL.panel or COL.bg); gfx.rect(x, y, w, 28, 1)
-  col(active and COL.accent or COL.line); gfx.rect(x, y, w, 28, 0)
-  if color then gfx.set(color[1] / 255, color[2] / 255, color[3] / 255); gfx.circle(x + 14, y + 14, 5, 1, 1) end
-  gfx.setfont(4); col((active or over) and COL.text or COL.muted); gfx.x, gfx.y = x + (color and 26 or 13), y + 7; gfx.drawstr(label)
-  return w, clicked and over
-end
 
 local function ask_text(title, current)
   local ok, v = reaper.GetUserInputs(title, 1, "Texte de la réplique,extrawidth=420,separator=\n", current or "")
@@ -349,7 +391,19 @@ local function page_lines(x, y, w)
         cx = cx + cw + 6
       end
     end)
-  y = y + 12
+  do
+    local em, dk = A.get("tr_email", ""), A.get("deepl_key", "")
+    local lab = dk ~= "" and "Traduction : DeepL (clé personnelle)" or em ~= "" and ("Traduction : MyMemory · " .. em) or "Traduction : MyMemory (limite partagée)"
+    local tw2, tc = chip("⚙ " .. lab, x, y + 2, nil, false)
+    if tc then
+      local ok, v = reaper.GetUserInputs("Réglages de traduction", 2, "Votre e-mail (limite × 10),Clé DeepL Free (facultatif),extrawidth=260", em .. "," .. dk)
+      if ok then
+        local e2, k2 = v:match("^([^,]*),(.*)$")
+        A.set("tr_email", (e2 or ""):match("^%s*(.-)%s*$")); A.set("deepl_key", (k2 or ""):match("^%s*(.-)%s*$"))
+      end
+    end
+    y = y + 40
+  end
   if p then run(own("adr_vo")) end
   -- 2. SRT
   y, p = action_row(x, y, w, "Fichier de sous-titres (.srt)", "Une ligne « MARC: texte » va directement au personnage MARC.", "Importer un SRT")
@@ -424,6 +478,7 @@ function rec_go(D, i, how)
   if how == "listen" then reaper.Main_OnCommand(1007, 0)
   elseif how == "rec" then
     local mode = A.cmd(continuous and "normal" or "punch"); if mode then reaper.Main_OnCommand(mode, 0) end
+    if continuous then reaper.DeleteExtState(A.SEC, "punch_on", false) else reaper.SetExtState(A.SEC, "punch_on", "1", false) end
     reaper.Main_OnCommand(1013, 0)
   end
 end
@@ -521,7 +576,7 @@ local DRAW = { home = page_home, edit = page_edit, voice = page_voice, cut = pag
 
 
 local function draw()
-  local w, h = gfx.w, gfx.h
+  local w, h = U.W(), U.H()
   col(COL.bg); gfx.rect(0, 0, w, h, 1)
   local sw = 190
   col(COL.side); gfx.rect(0, 0, sw, h, 1)
@@ -544,6 +599,9 @@ local function draw()
     y = y + 40
     ::continue::
   end
+  gfx.setfont(2); col(COL.muted)
+  gfx.x, gfx.y = 18, h - 74; gfx.drawstr("Version " .. P.VERSION .. " · Nouveautés")
+  if clicked and hit(16, h - 78, sw - 32, 20) then open_url("https://github.com/nicolasdebois-pixel/PodSuite/blob/main/CHANGELOG.md") end
   local d = gfx.dock(-1) & 1 == 1
   if button(d and "Détacher" or "Ancrer", 16, h - 50, sw - 32, 30) then
     gfx.dock(d and 0 or 1)
@@ -557,6 +615,7 @@ end
 
 local function loop()
   local ch = gfx.getchar()
+  U.frame()
   if ch < 0 or ch == 27 then return end
   local cap = gfx.mouse_cap
   if ch == 32 and page ~= "rec" then reaper.Main_OnCommand(40044, 0)
@@ -593,6 +652,7 @@ local function loop()
   reaper.defer(loop)
 end
 
+reaper.atexit(restore_record_mode)
 find_ripple_cmds()
 if reaper.GetExtState(SEC, "snap_default") ~= "1" then          -- par défaut : items aimantés les uns aux autres
   set_snap(true); reaper.SetExtState(SEC, "snap_default", "1", true)

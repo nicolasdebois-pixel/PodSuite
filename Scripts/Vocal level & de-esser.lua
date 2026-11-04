@@ -158,7 +158,12 @@ local function analyse_take(e, on_progress)
   local accK, nK, accF, accH, accL, accP, nF = 0, 0, 0, 0, 0, 0, 0
   local ring, rpos, nS, specs = {}, 0, 0, {}
   local done = 0
-  return function()
+  return function(cmd)
+    if cmd == "cancel" then                                   -- analyse interrompue : on rend l'item comme on l'a trouvé
+      reaper.DestroyAudioAccessor(acc)
+      if fx >= 0 then reaper.TakeFX_SetEnabled(take, fx, was) end
+      return true
+    end
     local deadline = reaper.time_precise() + 0.04
     while done < total and reaper.time_precise() < deadline do
       local n = math.min(BLOCK, total - done)
@@ -863,10 +868,12 @@ end
 local AW, AH, SW, SH = 940, 750, 680, 720
 local W, H = AW, AH
 if S.adv ~= 1 then W, H = SW, SH end
-gfx.init(TITLE, W, H)
+local U = dofile(scriptdir .. "Toolbox_ui.lua")
+U.init(TITLE, W, H)
 local UI = { msg = "", progress = nil, drag = nil, mouse_was = false, stats = nil }
 local takes = selected_takes()
 local job = nil                                   -- analyse en cours
+local cancel_job = nil
 local function set_msg(m) UI.msg = m end
 
 local COL = {
@@ -959,6 +966,11 @@ local function start_analysis()
   for _, e in ipairs(takes) do if not cache[take_key(e.item, e.take)] then queue[#queue + 1] = e end end
   if #queue == 0 then apply_all(); return end
   local qi, step = 1, nil
+  cancel_job = function()
+    if step then step("cancel") end
+    job, cancel_job = nil, nil; UI.progress = nil
+    set_msg("Analyse annulée : rien n'a été modifié.")
+  end
   job = function()
     set_msg(string.format("Analyse… item %d / %d", qi, #queue))
     if not step then step = analyse_take(queue[qi], function(f) UI.progress = (qi - 1 + f) / #queue end) end
@@ -966,7 +978,7 @@ local function start_analysis()
     if done then
       cache[take_key(queue[qi].item, queue[qi].take)] = A
       qi = qi + 1; step = nil
-      if qi > #queue then job = nil; UI.progress = nil; apply_all() end
+      if qi > #queue then job, cancel_job = nil, nil; UI.progress = nil; apply_all() end
     end
   end
 end
@@ -1071,6 +1083,10 @@ end
 
 -- bouton principal : « Analyser et appliquer » tant que la sélection n'est pas traitée, puis « Bypass »
 local function main_button(x, y, w, h)
+  if job and cancel_job then
+    if button("Annuler l'analyse", x, y, w, h, false) then cancel_job() end
+    return
+  end
   local done, byp = fx_state()
   if done then
     if button(byp and "Bypass (son d'origine)" or "Bypass", x, y, w, h, false, byp) then toggle_bypass() end
@@ -1131,7 +1147,7 @@ end
 local function resize_to(adv)
   S.adv = adv
   W, H = adv == 1 and AW or SW, adv == 1 and AH or SH
-  gfx.quit(); gfx.init(TITLE, W, H)
+  gfx.quit(); U.init(TITLE, W, H)
   gfx.setfont(1, "Arial", 15); gfx.setfont(2, "Arial", 13); gfx.setfont(3, "Arial", 19, string.byte("b")); gfx.setfont(4, "Arial", 13, string.byte("b"))
   UI.skip_click = true
 end
@@ -1145,7 +1161,7 @@ local ROWS = {
   { key = "eq_on", lv = "lv_eq", set = "eq", name = "Équilibre de la voix", desc = "Voix trop sourde, trop nasale ou trop brillante" },
 }
 local function draw_simple()
-  col(COL.bg); gfx.rect(0, 0, gfx.w, gfx.h, 1)
+  col(COL.bg); gfx.rect(0, 0, U.W(), U.H(), 1)
   text(TITLE, 24, 18, COL.text, 3)
   local n = #takes
   local analysed = 0
@@ -1201,7 +1217,7 @@ end
 
 local function draw()
   if S.adv ~= 1 then return draw_simple() end
-  col(COL.bg); gfx.rect(0, 0, gfx.w, gfx.h, 1)
+  col(COL.bg); gfx.rect(0, 0, U.W(), U.H(), 1)
   text(TITLE, 22, 16, COL.text, 3)
   local n = #takes
   local analysed = 0
@@ -1304,6 +1320,7 @@ end
 
 local function loop()
   local ch = gfx.getchar()
+  U.frame()
   if ch < 0 or ch == 27 then save(); return end
   -- la fenêtre du script garde le clavier : on relaie les raccourcis utiles à REAPER
   local cap = gfx.mouse_cap
