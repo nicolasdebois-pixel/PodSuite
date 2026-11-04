@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<index version="1" name="Podcast &amp; ADR Toolbox" commit="a4dbe608550525aaf7c70cf137b31205f206e5ac">
+<index version="1" name="Podcast &amp; ADR Toolbox" commit="9a32e550c4a951b1ff2a4ae3277aac07b3d6091b">
   <category name="Toolbox">
     <reapack name="Podcast &amp; ADR Toolbox" type="script" desc="Podcast &amp; ADR Toolbox">
       <version name="0.7.0" author="Nicolas Debois" time="2026-11-04T10:28:14Z">
@@ -60,8 +60,35 @@
         <source file="Vocal level - Guide.html" hash="1220cf9cba82c04bbe794e9fd6d2b79cc9bb2b7bf2aaf0aafbe3b0e6225f11ad8a93">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/a4dbe608550525aaf7c70cf137b31205f206e5ac/Scripts/Vocal%20level%20-%20Guide.html</source>
         <source file="Vocal level.jsfx" hash="1220917671719b9fd32ae54383bc143ddb32dba4aa562df0687b977578941de47885" type="effect">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/a4dbe608550525aaf7c70cf137b31205f206e5ac/Effects/Vocal%20level.jsfx</source>
       </version>
+      <version name="0.9.0" author="Nicolas Debois" time="2026-11-04T11:41:31Z">
+        <changelog>• Nouveau : doublage (ADR), pages 5 · Répliques et 6 · Enregistrement de la fenêtre principale
+• Répliques depuis la VO avec Whisper (traduction automatique en français, anglais, italien ou espagnol), depuis un fichier SRT, ou à la main
+• Personnages en couleur, une piste de prises par personnage, signes de détection (r) (b) (rire) (s)
+• Bande rythmo fluide (60 images/s) dans un navigateur : écran de la cabine ou tablette sur le même Wi-Fi, avec décompte 3-2-1
+• Enregistrement réplique par réplique : pré-roll, 3 bips, arrêt automatique, boucle, passage à la réplique suivante</changelog>
+        <source file="Podcast &amp; ADR Toolbox.lua" hash="12207d17e9ed2fdd10a142d91b177cb7a25bf4a67f70bd7185e4c2623bd02a2b55bf" main="main">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/9a32e550c4a951b1ff2a4ae3277aac07b3d6091b/Scripts/Podcast%20%26%20ADR%20Toolbox.lua</source>
+        <source file="Toolbox - Installation.lua" hash="1220a0c3a9d545d5edf6420633cd384e311352b666f5afc462cd9adc9c6c3434a972" main="main">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/9a32e550c4a951b1ff2a4ae3277aac07b3d6091b/Scripts/Toolbox%20-%20Installation.lua</source>
+        <source file="Toolbox - Serveur de derushage.lua" hash="12203b0551d4b9808163defb37027d42618af7f510e6f0cc4253e4c8af365259ab68" main="main">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/9a32e550c4a951b1ff2a4ae3277aac07b3d6091b/Scripts/Toolbox%20-%20Serveur%20de%20derushage.lua</source>
+        <source file="Toolbox - Transcrire.lua" hash="12203e02b373954ebca4c17d044d6b79c0e5307593381cf1886b30e40148806e2fc1" main="main">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/9a32e550c4a951b1ff2a4ae3277aac07b3d6091b/Scripts/Toolbox%20-%20Transcrire.lua</source>
+        <source file="Toolbox - Calibrer le clicker.lua" hash="1220962a1576c118aeb3b4308936b8d7fb8998f76bed6a6a3e378e9af6eead82203d" main="main">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/9a32e550c4a951b1ff2a4ae3277aac07b3d6091b/Scripts/Toolbox%20-%20Calibrer%20le%20clicker.lua</source>
+        <source file="Toolbox - Reglages de transcription.lua" hash="1220d3a9076e6f8c10c9a07d95d52241a3e2194835d571bb74e5617bae41721c9465" main="main">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/9a32e550c4a951b1ff2a4ae3277aac07b3d6091b/Scripts/Toolbox%20-%20Reglages%20de%20transcription.lua</source>
+        <source file="Toolbox_lib.lua" hash="12206680616b743098f0ced7a1209c4c9468b6f37043c2140fefd7cad83f179a3e0d">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/9a32e550c4a951b1ff2a4ae3277aac07b3d6091b/Scripts/Toolbox_lib.lua</source>
+        <source file="derushage.html" hash="1220e9a09e540018e9cfe355565a0a0cee887c3cd982c7d2ceca48eebbcf6d5576b4">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/9a32e550c4a951b1ff2a4ae3277aac07b3d6091b/www/derushage.html</source>
+        <source file="Toolbox - Controle du niveau.lua" hash="12201f0af4bb3cde54784860aaec20494d4a77472e5c790fc760d1e89f02d7b08c2b" main="main">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/9a32e550c4a951b1ff2a4ae3277aac07b3d6091b/Scripts/Toolbox%20-%20Controle%20du%20niveau.lua</source>
+        <source file="Toolbox limiter.jsfx" hash="1220022faf161ff5200ec22ffaec948df5c0039d08477e1e3fd76640c59872cc7abc" type="effect">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/9a32e550c4a951b1ff2a4ae3277aac07b3d6091b/Effects/Toolbox%20limiter.jsfx</source>
+        <source file="Toolbox TP meter.jsfx" hash="12208c5c241e4af643b711b056060f00a8bc409c15c5469e9660b749125687f75d8b" type="effect">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/9a32e550c4a951b1ff2a4ae3277aac07b3d6091b/Effects/Toolbox%20TP%20meter.jsfx</source>
+        <source file="Toolbox - Ripple edge.lua" hash="122052009cd558d640193218d1cb651264a100b047bab1601732e20a966b69715935" main="main">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/9a32e550c4a951b1ff2a4ae3277aac07b3d6091b/Scripts/Toolbox%20-%20Ripple%20edge.lua</source>
+        <source file="Vocal level &amp; de-esser.lua" hash="1220f029269d2672fb4a99b34f993ec487dc1ae1ee0c44e763cf2c470a84dac3fee3" main="main">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/9a32e550c4a951b1ff2a4ae3277aac07b3d6091b/Scripts/Vocal%20level%20%26%20de-esser.lua</source>
+        <source file="Vocal level - Guide.html" hash="1220cf9cba82c04bbe794e9fd6d2b79cc9bb2b7bf2aaf0aafbe3b0e6225f11ad8a93">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/9a32e550c4a951b1ff2a4ae3277aac07b3d6091b/Scripts/Vocal%20level%20-%20Guide.html</source>
+        <source file="Vocal level.jsfx" hash="1220917671719b9fd32ae54383bc143ddb32dba4aa562df0687b977578941de47885" type="effect">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/9a32e550c4a951b1ff2a4ae3277aac07b3d6091b/Effects/Vocal%20level.jsfx</source>
+        <source file="Toolbox_adr.lua" hash="1220fcf8087ba704b1b182c4efcba341e754dadd43b1b691cf226c8b9dc5db11f0da">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/9a32e550c4a951b1ff2a4ae3277aac07b3d6091b/Scripts/Toolbox_adr.lua</source>
+        <source file="Toolbox - Serveur doublage.lua" hash="12205c815fd0bdd222351e176ac7af6a1cc48045022a7efe8e8695b7974f77176695" main="main">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/9a32e550c4a951b1ff2a4ae3277aac07b3d6091b/Scripts/Toolbox%20-%20Serveur%20doublage.lua</source>
+        <source file="Toolbox - Transcrire VO.lua" hash="122041798f055a5956d7ac0b77d8d05afae3dbe3b99082a2bc41bf9b65a928346a3d" main="main">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/9a32e550c4a951b1ff2a4ae3277aac07b3d6091b/Scripts/Toolbox%20-%20Transcrire%20VO.lua</source>
+        <source file="Toolbox - Importer SRT.lua" hash="122065be452331d5d808796317e8042b269a7c394d6fe96d0f9817f36ee241ab1ef1" main="main">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/9a32e550c4a951b1ff2a4ae3277aac07b3d6091b/Scripts/Toolbox%20-%20Importer%20SRT.lua</source>
+        <source file="doublage.html" hash="1220e12eddbdc17f243d509b30e4372df1c2c0a3277ff38776fd35e74fa89e9896a2">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/9a32e550c4a951b1ff2a4ae3277aac07b3d6091b/www/doublage.html</source>
+      </version>
       <metadata>
-        <description>{\rtf1\ansi\deff0{\fonttbl{\f0 \fswiss Helvetica;}}\f0\fs22 Bo\u238?te \u224? outils gratuite pour REAPER : d\u233?rushage de podcast par le texte (Whisper en local), traitement de la voix (Vocal level &amp; de-esser), ripple sur les bords des items, contr\u244?le du niveau avant l'export. Une seule action \u224? retenir : \u171? Podcast &amp; ADR Toolbox \u187?.\par}</description>
+        <description>{\rtf1\ansi\deff0{\fonttbl{\f0 \fswiss Helvetica;}}\f0\fs22 Bo\u238?te \u224? outils gratuite pour REAPER : d\u233?rushage de podcast par le texte (Whisper en local), ripple sur les bords des items, traitement de la voix (Vocal level &amp; de-esser), contr\u244?le du niveau avant l'export, et doublage (ADR) avec bande rythmo sur tablette. Une seule action \u224? retenir : \u171? Podcast &amp; ADR Toolbox \u187?.\par}</description>
         <link rel="website">https://github.com/nicolasdebois-pixel/PodSuite</link>
       </metadata>
     </reapack>
