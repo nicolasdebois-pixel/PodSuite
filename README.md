@@ -35,6 +35,9 @@ Sur Mac, l'assistant utilise Homebrew. S'il n'est pas installé, l'assistant don
 Les mises à jour arrivent ensuite toutes seules par ReaPack (*Extensions › ReaPack › Synchronize packages*).
 
 ## Utilisation
+Une seule action à retenir : **PodSuite**. Elle ouvre une fenêtre avec une page par étape
+(Dérushage, Voix, Montage, Export) d'où l'on lance tous les outils. Mettez-la dans une barre d'outils.
+
 
 1. Enregistrez le projet REAPER.
 2. Lancez **PodSuite - Serveur** et laissez-le tourner.

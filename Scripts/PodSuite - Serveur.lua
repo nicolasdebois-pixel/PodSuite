@@ -327,6 +327,10 @@ local function loop()
     reaper.PreventUIRefresh(1); apply_listen(listen); reaper.PreventUIRefresh(-1); reaper.UpdateArrange()
   end
 
+  if reaper.GetExtState(P.SECTION, "stop_server") == "1" then      -- arrêt demandé depuis la fenêtre PodSuite
+    reaper.DeleteExtState(P.SECTION, "stop_server", false)
+    return
+  end
   if now - last_hb > 1 then
     last_hb = now; hb = hb + 1
     reaper.SetExtState(P.SECTION, "hb", tostring(hb), false)
@@ -344,6 +348,7 @@ reaper.atexit(function()
 end)
 
 P.install_page()
+reaper.DeleteExtState(P.SECTION, "stop_server", false)
 reaper.SetExtState(P.SECTION, "server", ME, false)
 load_project(true)
 loop()
