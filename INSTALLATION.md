@@ -87,9 +87,9 @@ Quand c'est terminé, la page **Accueil** affiche deux pastilles vertes.
 
 ## Doublage : afficher la bande rythmo en cabine
 
-La bande rythmo s'affiche dans un navigateur web. L'image, elle, reste dans la fenêtre vidéo de REAPER (*View › Video*).
+La bande rythmo s'affiche dans un navigateur web, avec **l'image du film au-dessus**, calée sur la lecture de REAPER : le comédien voit l'image et la bande sur le même écran, pendant que l'ingé son garde la fenêtre vidéo de REAPER sur le sien. Le son reste dans le casque (la page est muette).
 
-**Sur un écran de la cabine branché à l'ordinateur** : glissez la fenêtre vidéo de REAPER sur cet écran, puis, dans la page **Enregistrement**, cliquez sur **Ouvrir sur cet ordinateur** et glissez le navigateur sous la vidéo. Touche **F** : plein écran.
+**Sur un écran de la cabine branché à l'ordinateur** : dans la page **Enregistrement**, cliquez sur **Ouvrir sur cet ordinateur**, glissez le navigateur sur l'écran de la cabine, puis touche **F** : plein écran.
 
 **Sur une tablette (ou un autre ordinateur)** :
 
@@ -98,7 +98,9 @@ La bande rythmo s'affiche dans un navigateur web. L'image, elle, reste dans la f
 3. Tapez-la dans le navigateur de la tablette (Safari, Chrome…). Touchez **⛶** pour le plein écran.
 4. Si rien ne s'affiche : la première fois, l'ordinateur peut demander s'il faut **autoriser REAPER à accepter les connexions entrantes** : répondez **Autoriser**. Sur un réseau d'école qui isole les appareils, utilisez un petit routeur Wi-Fi dédié, ou le partage de connexion de l'ordinateur.
 
-Les boutons en haut à droite de la bande règlent la vitesse de défilement (**− / +**) et le calage sur l'image (**◂ / ▸ 10 ms**) ; ces réglages sont mémorisés sur la tablette.
+Les boutons en haut à droite de la bande règlent la vitesse de défilement (**− / +**) et le calage sur le son (**◂ / ▸ 10 ms**, appliqué à l'image et à la bande) ; **Vidéo** masque ou affiche l'image. Ces réglages sont mémorisés sur la tablette.
+
+**La vidéo** : à l'ouverture de la bande, la vidéo du projet est copiée pour le serveur web de REAPER, puis chargée par la tablette (comptez quelques secondes à une minute selon la taille et le Wi-Fi). Elle doit être dans un format lisible par un navigateur : **MP4 (H.264)** de préférence. Si la page indique « format vidéo non lisible », exportez la vidéo en MP4 H.264, en résolution réduite (720p suffit), puis remplacez-la dans REAPER.
 
 **Lire la bande** : le texte défile vers la barre verticale ; on dit chaque syllabe quand elle passe sous la barre. Les deux petits traits avant la réplique à enregistrer correspondent au double bip : « bip, bip, top », on parle au troisième temps. Les signes **RESP** (respiration), **BOUCHE** (bouche fermée), **RIRE** et **SOUPIR** viennent des codes `(r)`, `(b)`, `(rire)` et `(s)` tapés dans le texte des répliques.
 

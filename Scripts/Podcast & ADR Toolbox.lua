@@ -422,7 +422,7 @@ function rec_go(D, i, how)
 end
 
 local function page_rec(x, y, w)
-  y = header(x, y, w, "Enregistrement", "La bande rythmo s'affiche dans un navigateur : sur l'écran de la cabine ou sur une tablette du même réseau Wi-Fi. L'image reste dans la fenêtre vidéo de REAPER.")
+  y = header(x, y, w, "Enregistrement", "La bande rythmo s'affiche dans un navigateur : sur l'écran de la cabine ou sur une tablette du même réseau Wi-Fi, avec la vidéo du film au-dessus, calée sur REAPER.")
   local D = adr_data()
   local on = adr_server_on()
   local port = P.web_port()
@@ -431,6 +431,18 @@ local function page_rec(x, y, w)
     "Ouvrir sur cet ordinateur", true, not port,
     function(ax, ay) status_dot(ax + 6, ay + 8, on); text(on and "Serveur de la bande actif" or "Serveur arrêté (il démarre avec la bande)", ax + 18, ay + 1, on and COL.ok or COL.muted, 2) end)
   if p then ensure_adr_server(); open_url(P.web_url("doublage.html")) end
+  -- vidéo sur la tablette
+  local vinfo = reaper.GetExtState(A.SEC, "video")
+  local vstate = vinfo:match("([^|]*)$") or ""
+  local vtxt = not on and "Vidéo : envoyée à la tablette quand la bande est ouverte."
+    or vstate == "ok" and "Vidéo du projet affichée au-dessus de la bande, calée sur REAPER."
+    or vstate == "none" and "Aucune vidéo dans le projet (Insert › Media file… pour l'ajouter)."
+    or vstate:find("^copie") and ("Vidéo : préparation pour la tablette, " .. vstate:gsub("copie ", "") .. "…")
+    or vstate == "off" and "Vidéo masquée sur la bande." or "Vidéo : …"
+  local vw, vc = chip((A.get("show_video", "1") == "1" and "✓ " or "") .. "Vidéo sur la bande", x, y, nil, A.get("show_video", "1") == "1")
+  if vc then A.set("show_video", A.get("show_video", "1") == "1" and "0" or "1") end
+  text(vtxt, x + vw + 12, y + 7, vstate == "ok" and COL.ok or COL.muted, 2)
+  y = y + 40
   -- personnage
   local focus = A.get("focus", "")
   text("Personnage enregistré", x, y + 6, COL.text, 4)

@@ -16,16 +16,22 @@
   #help{position:fixed;inset:auto 12px 12px auto;max-width:440px;background:#1b1b20;color:#cfcfd6;border:1px solid #2e2e35;
     border-radius:12px;padding:14px 16px;font:14px/1.5 system-ui,sans-serif;display:none;z-index:3}
   #help b{color:#fff}
+  #vid{position:fixed;left:0;right:0;top:44px;width:100vw;object-fit:contain;background:#000;display:none;z-index:1}
+  #vmsg{position:fixed;left:0;right:0;top:44px;display:none;align-items:center;justify-content:center;color:#9a9aa2;
+    font:500 16px system-ui,sans-serif;background:#050506;z-index:1;text-align:center;padding:0 20px}
   #help .k{display:inline-block;min-width:110px;color:#9a9aa2}
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
+<video id="vid" muted playsinline preload="auto"></video>
+<div id="vmsg"></div>
 <div id="tools">
   <button id="slower" title="Défilement plus lent">−</button>
   <button id="faster" title="Défilement plus rapide">+</button>
   <button id="early" title="Bande plus tôt (−10 ms)">◂ 10 ms</button>
   <button id="late" title="Bande plus tard (+10 ms)">10 ms ▸</button>
+  <button id="vbtn" title="Afficher / masquer la vidéo">Vidéo</button>
   <button id="vo" title="Afficher / masquer le texte original">VO</button>
   <button id="full" title="Plein écran">⛶</button>
   <button id="hlp" title="Aide">?</button>
@@ -38,6 +44,7 @@
   <span class="k">− / +</span>vitesse de défilement (aussi ↓ / ↑)<br>
   <span class="k">◂ / ▸ 10 ms</span>caler la bande sur l'image (aussi ← / →)<br>
   <span class="k">⛶</span>plein écran (aussi touche F ou double-tap)<br>
+  <span class="k">Vidéo</span>l'image du film au-dessus de la bande, calée sur REAPER (le son reste dans le casque)<br>
   Réglages mémorisés sur cet appareil.
 </div>
 <script>
@@ -52,6 +59,7 @@ function lset(k,v){ try { localStorage.setItem('rythmo_'+k, v); } catch(e){} }
 let speed  = +(Q.get('speed')  || lget('speed')  || 320);
 let offset = +(Q.get('offset') || lget('offset') || 0);
 let showVO = (Q.get('vo') || lget('vo') || '1') === '1';
+let showVid = (Q.get('video') || lget('video') || '1') === '1';
 const BAR  = Math.min(0.9, Math.max(0.05, +(Q.get('bar') || 0.25)));
 const HEAD = 44;
 const TOKENS = { r:'RESP', b:'BOUCHE', rire:'RIRE', s:'SOUPIR' };
@@ -125,7 +133,7 @@ async function req(cmd){
 async function poll(){
   const t0 = performance.now();
   try {
-    const rows = await req(`TRANSPORT;GET/EXTSTATE/${SEC}/version;GET/EXTSTATE/${SEC}/rate;GET/EXTSTATE/${SEC}/focus;GET/EXTSTATE/${SEC}/curpos`);
+    const rows = await req(`TRANSPORT;GET/EXTSTATE/${SEC}/version;GET/EXTSTATE/${SEC}/rate;GET/EXTSTATE/${SEC}/focus;GET/EXTSTATE/${SEC}/curpos;GET/EXTSTATE/${SEC}/video`);
     const t1 = performance.now();
     let v = '';
     for (const f of rows) {
@@ -134,6 +142,7 @@ async function poll(){
       else if (f[0] === 'EXTSTATE' && f[2] === 'rate') srv.rate = +(f[3]||1) || 1;
       else if (f[0] === 'EXTSTATE' && f[2] === 'focus') focus = f[3] || '';
       else if (f[0] === 'EXTSTATE' && f[2] === 'curpos') curpos = f[3] ? +f[3] : null;
+      else if (f[0] === 'EXTSTATE' && f[2] === 'video') videoInfo(f[3] || '');
     }
     srv.ok = true; srv.scriptOk = v !== '';
     if (v && v !== version) {
@@ -145,6 +154,64 @@ async function poll(){
     }
   } catch(e) { srv.ok = false; }
   setTimeout(poll, 25);
+}
+
+/* ---------- Vidéo : copie du film servie par REAPER, calée sur sa position de lecture ---------- */
+const vid = document.getElementById('vid'), vmsg = document.getElementById('vmsg');
+const V = { key:'', url:'', pos:0, offs:0, rate:1, ready:false, status:'', loading:false };
+function videoInfo(raw){
+  // url|position de l'item|décalage dans le fichier|vitesse|marque|état
+  const f = raw.split('|');
+  if (!f[0]) { V.status = f[5] || ''; if (V.key) { V.key = ''; V.ready = false; vid.removeAttribute('src'); vid.load(); } return; }
+  V.pos = +f[1] || 0; V.offs = +f[2] || 0; V.rate = +f[3] || 1; V.status = f[5] || '';
+  const key = f[0] + '|' + f[4];
+  if (key !== V.key && V.status === 'ok' && !V.loading) { V.key = key; V.url = f[0]; loadVideo(); }
+}
+async function loadVideo(){
+  V.loading = true; V.ready = false;
+  try {
+    // téléchargement complet (le serveur de REAPER ne gère pas forcément la lecture « par morceaux »)
+    const r = await fetch('/' + V.url + '?v=' + encodeURIComponent(V.key), { cache:'no-store' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const total = +r.headers.get('Content-Length') || 0;
+    const reader = r.body.getReader(); const chunks = []; let got = 0;
+    for (;;) {
+      const { done, value } = await reader.read(); if (done) break;
+      chunks.push(value); got += value.length;
+      V.status = total ? `chargement ${Math.round(got / total * 100)} %` : `chargement ${(got/1048576)|0} Mo`;
+    }
+    const ext = V.url.split('.').pop().toLowerCase();
+    const type = ext === 'mov' ? 'video/quicktime' : ext === 'webm' ? 'video/webm' : 'video/mp4';
+    if (vid.src && vid.src.startsWith('blob:')) URL.revokeObjectURL(vid.src);
+    vid.src = URL.createObjectURL(new Blob(chunks, { type }));
+    await new Promise((ok, ko) => { vid.onloadedmetadata = ok; vid.onerror = () => ko(new Error('format')); });
+    V.ready = true; V.status = 'ok';
+  } catch(e) {
+    V.status = e.message === 'format' ? 'format' : 'erreur';
+  }
+  V.loading = false;
+}
+function vidH(){ return showVid && (V.key || V.status) ? Math.round(Math.min(H * 0.5, W * 9 / 16)) : 0; }
+function syncVideo(t){
+  const vh = vidH();
+  vid.style.display = vh && V.ready ? 'block' : 'none';
+  vid.style.height = vh + 'px';
+  const msg = !vh || V.ready ? '' : V.status === 'format' ? 'Ce navigateur ne sait pas lire ce format vidéo : exportez la vidéo en MP4 (H.264).'
+    : V.status === 'erreur' ? 'Vidéo inaccessible.' : V.status.startsWith('chargement') ? 'Vidéo : ' + V.status + '…'
+    : V.status.startsWith('copie') ? 'Préparation de la vidéo dans REAPER : ' + V.status + '…' : V.status === 'none' ? 'Pas de vidéo dans le projet REAPER.' : '';
+  vmsg.style.display = msg ? 'flex' : 'none'; vmsg.style.height = vh + 'px'; vmsg.textContent = msg;
+  if (!V.ready || !vh) { if (!vid.paused) vid.pause(); return; }
+  const target = (t - V.pos) * V.rate + V.offs;
+  if (target < 0 || target > (vid.duration || 1e9)) { if (!vid.paused) vid.pause(); return; }
+  const drift = vid.currentTime - target;
+  if (playing()) {
+    if (vid.paused) { vid.currentTime = target; vid.play().catch(()=>{}); }
+    if (Math.abs(drift) > 0.25) { vid.currentTime = target; vid.playbackRate = srv.rate * V.rate; }
+    else vid.playbackRate = Math.max(0.5, srv.rate * V.rate * (1 - Math.max(-0.05, Math.min(0.05, drift * 0.5))));
+  } else {
+    if (!vid.paused) vid.pause();
+    if (Math.abs(drift) > 0.04 && !vid.seeking) vid.currentTime = target;
+  }
 }
 
 /* ---------- Horloge lissée ---------- */
@@ -228,15 +295,16 @@ function draw(t){
   if (srv.rate !== 1) { ctx.fillStyle = '#64d2ff'; ctx.fillText(`× ${srv.rate.toFixed(2)}`, 560, 28); }
   if (performance.now() < toastUntil) { ctx.fillStyle = '#fff'; ctx.fillText(toast, 660, 28); }
 
+  const TOP = HEAD + vidH();
   const n = Math.max(1, lanes.length);
-  const lh = Math.min(240, (H - HEAD) / n);
+  const lh = Math.min(240, (H - TOP) / n);
   const fs = Math.max(16, lh * 0.40) | 0;
   const barX = W * BAR;
   const tMin = t - barX / speed, tMax = t + (W - barX) / speed;
   const dim = i => focus && lanes[i] && lanes[i].name !== focus;
 
   for (let i=0;i<n;i++){
-    const y = HEAD + i*lh;
+    const y = TOP + i*lh;
     ctx.fillStyle = i % 2 ? '#141418' : '#18181d'; ctx.fillRect(0, y, W, lh);
     if (lanes[i]) {
       ctx.globalAlpha = dim(i) ? 0.35 : 1;
@@ -248,12 +316,12 @@ function draw(t){
   }
   // réplique en cours : le fond s'éclaire
   for (const c of cues) if (t >= c.pos && t < c.pos + c.len && !dim(c.row)) {
-    ctx.globalAlpha = 0.13; ctx.fillStyle = c.ink; ctx.fillRect(0, HEAD + c.row*lh, W, lh); ctx.globalAlpha = 1;
+    ctx.globalAlpha = 0.13; ctx.fillStyle = c.ink; ctx.fillRect(0, TOP + c.row*lh, W, lh); ctx.globalAlpha = 1;
   }
   // double bip : 2 traits avant la réplique en cours seulement
   const cur = curpos == null ? null : cues.find(c => Math.abs(c.pos - curpos) < 0.002);
   for (const c of cur ? [cur] : []){
-    const y = HEAD + c.row*lh;
+    const y = TOP + c.row*lh;
     for (const k of [1, 0.5]) {
       const x = barX + (c.pos - k - t) * speed;
       ctx.fillStyle = c.ink; ctx.globalAlpha = x < barX ? 0.25 : 0.9;
@@ -263,7 +331,7 @@ function draw(t){
   }
   for (const c of cues){
     if (c.pos + c.len < tMin || c.pos > tMax) continue;
-    const x0 = barX + (c.pos - t) * speed, w = c.len * speed, y = HEAD + c.row*lh;
+    const x0 = barX + (c.pos - t) * speed, w = c.len * speed, y = TOP + c.row*lh;
     const a = dim(c.row) ? 0.3 : 1;
     ctx.save(); ctx.beginPath(); ctx.rect(0, y, barX, lh); ctx.clip(); drawCue(c, x0, w, y, lh, fs, a * 0.3); ctx.restore();
     ctx.save(); ctx.beginPath(); ctx.rect(barX, y, W - barX, lh); ctx.clip(); drawCue(c, x0, w, y, lh, fs, a); ctx.restore();
@@ -273,7 +341,7 @@ function draw(t){
     const next = cur.pos > t && cur.pos - t <= 1 ? cur : null;
     if (next) {
       const k = next.pos - t > 0.5 ? 2 : 1;
-      const y = HEAD + next.row*lh;
+      const y = TOP + next.row*lh;
       ctx.fillStyle = next.ink; ctx.globalAlpha = 0.9;
       ctx.font = `800 ${Math.min(lh*0.7, 120)|0}px system-ui, sans-serif`;
       ctx.textAlign = 'right'; ctx.fillText(String(k), barX - 16, y + lh*0.72); ctx.textAlign = 'left';
@@ -282,17 +350,18 @@ function draw(t){
   }
   if (!cues.length && srv.scriptOk) {
     ctx.fillStyle = '#6e6e76'; ctx.font = '500 17px system-ui, sans-serif';
-    ctx.fillText('Aucune réplique pour l’instant (page « Répliques » de la boîte à outils).', 20, HEAD + 40);
+    ctx.fillText('Aucune réplique pour l’instant (page « Répliques » de la boîte à outils).', 20, TOP + 40);
   }
   // barre de synchro
   ctx.fillStyle = rec ? '#ff453a' : '#ffffff';
-  ctx.fillRect(barX - 1.5, HEAD, 3, H - HEAD);
-  ctx.beginPath(); ctx.moveTo(barX-10, HEAD); ctx.lineTo(barX+10, HEAD); ctx.lineTo(barX, HEAD+11); ctx.fill();
+  ctx.fillRect(barX - 1.5, TOP, 3, H - TOP);
+  ctx.beginPath(); ctx.moveTo(barX-10, TOP); ctx.lineTo(barX+10, TOP); ctx.lineTo(barX, TOP+11); ctx.fill();
 }
 function frame(now){
   const dt = Math.min(0.1, (now - lastFrame)/1000); lastFrame = now;
   updateClock(now, dt);
   draw(disp + offset/1000);
+  syncVideo(disp + offset/1000);
   requestAnimationFrame(frame);
 }
 
@@ -312,6 +381,7 @@ $('early').onclick  = () => setOffset(offset - 10);
 $('late').onclick   = () => setOffset(offset + 10);
 $('vo').onclick     = () => { showVO = !showVO; lset('vo', showVO ? '1' : '0'); say(showVO ? 'Texte original affiché' : 'Texte original masqué'); };
 $('full').onclick   = fullscreen;
+$('vbtn').onclick   = () => { showVid = !showVid; lset('video', showVid ? '1' : '0'); say(showVid ? 'Vidéo affichée' : 'Vidéo masquée'); };
 $('hlp').onclick    = () => { const h = $('help'); h.style.display = h.style.display === 'block' ? 'none' : 'block'; };
 addEventListener('keydown', e => {
   if (e.key === 'ArrowUp') setSpeed(speed + 20);
