@@ -62,6 +62,8 @@ La fenêtre principale s'ouvre, avec une page par étape : **Accueil**, **Dérus
 > - **ou un raccourci clavier** : dans l'*Action list*, sélectionnez l'action, puis **Add…** sous *Shortcuts for selected action*.
 >
 > Le bouton **Ancrer**, en bas à gauche de la fenêtre, la range dans l'interface de REAPER.
+>
+> **Mode Simple / Expert** (en bas à gauche) : en Simple, seul l'essentiel est affiché ; en Expert, tous les réglages. Le bouton **?** en haut à droite de chaque page affiche l'aide de la page.
 
 ## Étape 5 — Installer la transcription (une seule fois)
 

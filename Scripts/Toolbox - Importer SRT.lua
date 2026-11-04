@@ -15,7 +15,7 @@ if not defName or defName:match("^%s*$") then defName = "VO" end
 defName = defName:match("^%s*(.-)%s*$")
 
 local txt = P.read_file(path)
-if not txt then reaper.MB("Impossible d'ouvrir le fichier.", TITLE, 0) return end
+if not txt then P.notify("Impossible d'ouvrir le fichier.") return end
 local subs = A.parse_srt(txt)
 reaper.Undo_BeginBlock()
 reaper.PreventUIRefresh(1)
@@ -31,4 +31,4 @@ reaper.Undo_EndBlock("Toolbox : import SRT (" .. #subs .. " répliques)", -1)
 local names = {}
 for n in pairs(who) do names[#names + 1] = n end
 table.sort(names)
-reaper.MB(string.format("%d répliques importées%s.", #subs, #names > 0 and (" (personnages : " .. table.concat(names, ", ") .. ")") or ""), TITLE, 0)
+P.notify(string.format("%d répliques importées%s.", #subs, #names > 0 and (" (personnages : " .. table.concat(names, ", ") .. ")") or ""))

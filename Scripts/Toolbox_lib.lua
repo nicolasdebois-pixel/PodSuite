@@ -2,7 +2,7 @@
 -- (ne pas lancer directement : chargé par les autres scripts)
 
 local P = {}
-P.VERSION = "0.9.5"
+P.VERSION = "0.9.6"
 P.SECTION = "PODSUITE"
 P.WIN = reaper.GetOS():find("Win") ~= nil
 P.SEP = P.WIN and "\\" or "/"
@@ -223,6 +223,17 @@ function P.settings_dialog()
   P.set("threads", tonumber(f[4]) and f[4] or "4"); P.set("prompt", f[5])
   P.set("click_sens", tostring(math.max(0, math.min(100, tonumber(f[6]) or 50))))
   return P.exists(f[1]) and P.exists(f[2])
+end
+
+-- Message pour l'utilisateur : dans la fenêtre principale si elle est ouverte, sinon en boîte de dialogue
+function P.notify(msg)
+  local alive = tonumber(reaper.GetExtState(P.SECTION, "hub_alive"))
+  if alive and math.abs(reaper.time_precise() - alive) < 3 then
+    reaper.SetExtState(P.SECTION, "toast", tostring(msg), false)
+    reaper.SetExtState(P.SECTION, "toast_id", tostring(reaper.time_precise()), false)
+  else
+    reaper.MB(tostring(msg), "Podcast & ADR Toolbox", 0)
+  end
 end
 
 function P.settings_ok() return P.exists(P.get("whisper")) and P.exists(P.get("model")) end

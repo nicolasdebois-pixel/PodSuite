@@ -866,6 +866,8 @@ end
 
 ---------------------------------------------------------------- Interface
 local AW, AH, SW, SH = 940, 750, 680, 720
+local EXPERT = reaper.GetExtState("PODSUITE", "expert") == "1"   -- mode Simple de la boîte à outils : pas de réglages avancés
+if not EXPERT then S.adv = 0 end
 local W, H = AW, AH
 if S.adv ~= 1 then W, H = SW, SH end
 local U = dofile(scriptdir .. "Toolbox_ui.lua")
@@ -1205,7 +1207,7 @@ local function draw_simple()
   local by = H - 54
   main_button(x, by, 220, 36)
   if button("Guide d'utilisation", x + 230, by, 170, 36) then open_guide() end
-  if button("Réglages avancés", x + w - 160, by, 160, 36) then resize_to(1); return true end
+  if EXPERT and button("Réglages avancés", x + w - 160, by, 160, 36) then resize_to(1); return true end
   if chg and not job then
     local any = false
     for _, e in ipairs(takes) do if cache[take_key(e.item, e.take)] then any = true end end

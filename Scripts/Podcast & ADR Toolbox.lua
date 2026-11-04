@@ -120,7 +120,7 @@ local COL = {
 }
 local function col(c, a) gfx.set(c[1], c[2], c[3], a or 1) end
 local function fonts()
-  gfx.setfont(1, "Arial", 15); gfx.setfont(2, "Arial", 13); gfx.setfont(3, "Arial", 21, string.byte("b"))
+  gfx.setfont(1, "Arial", 16); gfx.setfont(2, "Arial", 14); gfx.setfont(3, "Arial", 22, string.byte("b"))
   gfx.setfont(4, "Arial", 14, string.byte("b")); gfx.setfont(5, "Arial", 16, string.byte("b"))
 end
 fonts()
@@ -171,6 +171,7 @@ local PAGES = {
   { id = "rec", name = "6 · Enregistrement" },
 }
 local page = reaper.GetExtState(SEC, "hub_page"); if page == "" then page = "home" end
+local function expert() return reaper.GetExtState(SEC, "expert") == "1" end
 local msg = ""
 -- le doublage passe REAPER en « auto-punch » : on remet le mode normal dès qu'on quitte la page Enregistrement
 local function restore_record_mode()
@@ -265,8 +266,10 @@ local function page_edit(x, y, w)
   end
   y, p = action_row(x, y, w, "Calibrer le clicker", "Placez le curseur juste avant un clic sur la piste du micro : l'outil apprend le son de votre clicker.", "Calibrer")
   if p then run(own("clicker")) end
-  y, p = action_row(x, y, w, "Réglages de transcription", "Emplacement de Whisper, modèle, langue, vocabulaire.", "Réglages")
-  if p then run(own("settings")) end
+  if expert() then
+    y, p = action_row(x, y, w, "Réglages de transcription", "Emplacement de Whisper, modèle, langue, vocabulaire.", "Réglages")
+    if p then run(own("settings")) end
+  end
 end
 
 local function page_voice(x, y, w)
@@ -322,20 +325,22 @@ local function page_cut(x, y, w)
   else
     y = wrap("Activez l'aimant de la barre d'outils de REAPER (clic droit dessus pour cocher l'aimantation aux items).", x, y + 48, w, COL.muted, 2) + 16
   end
-  -- ripple de REAPER
-  col(COL.line); gfx.line(x, y, x + w, y)
-  text("Ripple editing de REAPER", x, y + 14, COL.text, 5)
-  local mode = ripple_mode()
-  local bw = 160
-  if RIPPLE.off and RIPPLE.track and RIPPLE.all then
-    for i, b in ipairs({ { "off", "Désactivé" }, { "track", "Par piste" }, { "all", "Toutes les pistes" } }) do
-      if button(b[2], x + (i - 1) * (bw + 6), y + 42, bw, 30, false, mode == b[1]) then reaper.Main_OnCommand(RIPPLE[b[1]], 0) end
+  if expert() then
+    -- ripple de REAPER
+    col(COL.line); gfx.line(x, y, x + w, y)
+    text("Ripple editing de REAPER", x, y + 14, COL.text, 5)
+    local mode = ripple_mode()
+    local bw = 160
+    if RIPPLE.off and RIPPLE.track and RIPPLE.all then
+      for i, b in ipairs({ { "off", "Désactivé" }, { "track", "Par piste" }, { "all", "Toutes les pistes" } }) do
+        if button(b[2], x + (i - 1) * (bw + 6), y + 42, bw, 30, false, mode == b[1]) then reaper.Main_OnCommand(RIPPLE[b[1]], 0) end
+      end
+    else
+      text("(utilisez le bouton ripple de la barre d'outils de REAPER)", x, y + 48, COL.muted, 2)
     end
-  else
-    text("(utilisez le bouton ripple de la barre d'outils de REAPER)", x, y + 48, COL.muted, 2)
+    y = y + 36
+    y = wrap("Par piste : seule la piste modifiée se décale. Toutes les pistes : tout le projet suit (pratique pour garder les intervenants synchronisés).", x, y + 48, w - 24, COL.muted, 2) + 16
   end
-  y = y + 36
-  y = wrap("Par piste : seule la piste modifiée se décale. Toutes les pistes : tout le projet suit (pratique pour garder les intervenants synchronisés).", x, y + 48, w - 24, COL.muted, 2) + 16
   -- ripple sur les bords
   col(COL.line); gfx.line(x, y, x + w, y)
   text("Ripple sur les bords des items", x, y + 14, COL.text, 5)
@@ -543,13 +548,16 @@ local function page_rec(x, y, w)
   if button(recording and "●  Enregistrement…" or "●  Enregistrer", x + 2 * (bw + 8), y, bw, 40, false, false, dis or running, RED) then rec_go(D, i, "rec") end
   if button("Suivante  ▶", x + 3 * (bw + 8), y, bw, 40, false, false, dis or i >= #lines or recording) then rec_go(D, i + 1) end
   y = y + 52
-  -- mode d'enregistrement
+  -- mode d'enregistrement (expert)
+  if not expert() and A.get("rec_mode", "line") == "free" then A.set("rec_mode", "line") end
+  if expert() then
   text("Enregistrer", x, y + 7, COL.muted, 2)
   local free = A.get("rec_mode", "line") == "free"
   local mx = x + 90
   local w1, c1 = chip("Une réplique (arrêt automatique)", mx, y, nil, not free); if c1 then A.set("rec_mode", "line") end
   local _, c2 = chip("En continu (jusqu'à « Arrêter »)", mx + w1 + 6, y, nil, free); if c2 then A.set("rec_mode", "free") end
   y = y + 40
+  end
   -- options
   local function toggle(label, key, def, ox)
     local v = A.get(key, def) == "1"
@@ -558,6 +566,7 @@ local function page_rec(x, y, w)
   end
   cx = x
   cx = cx + toggle("Bips", "bips", "1", cx) + 6
+  if expert() then
   if A.get("rec_mode", "line") ~= "free" then cx = cx + toggle("Boucle", "loop", "0", cx) + 6 end
   cx = cx + toggle("Suivante après la prise", "auto_next", "1", cx) + 18
   y = y + 38; cx = x
@@ -568,8 +577,55 @@ local function page_rec(x, y, w)
     cx = cx + w2 + 4
   end
   if pr == "off" and A.get("bips", "1") == "1" then text("(sans pré-roll, pas de bips)", cx + 8, y + 7, COL.muted, 2) end
+  end
   y = y + 42
-  wrap("Raccourcis : ← / → réplique précédente / suivante · R enregistrer · Espace écouter/arrêter. Chaque passage crée une nouvelle prise sur la piste « Prises - Personnage ». En continu, l'enregistrement part de la réplique affichée et enchaîne jusqu'à « Arrêter ».", x, y, w, COL.muted, 2)
+  wrap("Raccourcis : ← / → réplique précédente / suivante · R enregistrer · Espace écouter/arrêter. Chaque passage crée une nouvelle prise sur la piste « Prises - Personnage »." .. (expert() and " En continu, l'enregistrement part de la réplique affichée et enchaîne jusqu'à « Arrêter »." or ""), x, y, w, COL.muted, 2)
+end
+
+---------------------------------------------------------------- Aide de chaque page (bouton « ? »)
+local HELP = {
+  home = { "Bienvenue", {
+    "Cette fenêtre réunit tous les outils, dans l'ordre du travail : 1 Dérushage, 2 Montage, 3 Voix, 4 Export. Le doublage a ses deux pages : 5 Répliques et 6 Enregistrement.",
+    "Mode Simple : l'essentiel, pour démarrer. Mode Expert : tous les réglages. On peut changer à tout moment, en bas à gauche.",
+    "Pastille rouge dans « Installation » : cliquez sur « Installer / réparer » (une seule fois par ordinateur).",
+    "Ctrl/Cmd+Z annule, la barre d'espace lance ou arrête la lecture, même quand cette fenêtre est active." } },
+  edit = { "Dérushage", {
+    "1. Enregistrez le projet. 2. Sélectionnez les items des micros (un par intervenant). 3. « Transcrire la sélection ».",
+    "La page de dérushage s'ouvre dans le navigateur : barrez les mots à couper. REAPER reconstruit le montage sur des pistes « ✂ » ; les rushes ne sont jamais modifiés.",
+    "Le clicker : un clic pendant l'enregistrement = « prise ratée ». Calibrez-le une fois : PodSuite repère ensuite les clics et propose les coupes.",
+    "Exports (transcription, sous-titres, chapitres) : boutons en bas de la page." } },
+  cut = { "Montage", {
+    "Aimantation : les items se collent aux bords de leurs voisins quand on les déplace.",
+    "Ripple sur les bords : quand on raccourcit ou rallonge un item par un bord, ce qui suit (bord droit) ou ce qui précède (bord gauche) se décale d'autant, en direct.",
+    "Mode Expert : le ripple editing de REAPER (par piste ou toutes les pistes) pour les suppressions et déplacements." } },
+  voice = { "Voix", {
+    "À faire une fois le montage terminé. Sélectionnez les items de voix puis « Analyser et appliquer ».",
+    "Chaque traitement a trois intensités. Commencez en Moyen, écoutez au casque, puis ajustez : si la voix devient étouffée ou creuse, c'est trop fort.",
+    "« Bypass » compare avec le son d'origine. Les courbes dessinées sur les items montrent ce qui a été fait." } },
+  export = { "Export", {
+    "LUFS : le volume perçu, mesuré sur tout le fichier. Podcast : −16 LUFS ; Spotify : −14 LUFS (± 1).",
+    "True peak : la crête réelle du son, entre les échantillons. Elle ne doit pas dépasser −1 dBTP, sinon le son sature après compression MP3.",
+    "« Corriger automatiquement » ajoute un limiteur en fin de chaîne du master et règle le gain. Si le limiteur doit trop travailler, régularisez d'abord la voix." } },
+  lines = { "Répliques", {
+    "Une réplique = un item vide sur la piste « @Personnage », avec le texte dans ses notes. Déplacez ou étirez l'item pour le caler sur l'image.",
+    "Depuis la VO : Whisper place chaque réplique sur le temps de parole ; choisissez la langue de traduction avant de lancer.",
+    "En salle de cours, la traduction gratuite est vite épuisée : ⚙ Réglages de traduction, ajoutez votre e-mail (ou une clé DeepL gratuite).",
+    "Signes de détection dans le texte : (r) respiration, (b) bouche fermée, (rire), (s) soupir." } },
+  rec = { "Enregistrement", {
+    "Ouvrez la bande sur l'écran de la cabine (ou la tablette). Le comédien voit l'image, la réplique à dire en entier, puis la bande qui défile.",
+    "Choisissez le personnage, puis Précédente / Suivante pour vous placer. Écouter (vert) pour répéter, Enregistrer (rouge) pour la prise.",
+    "Double bip avant la réplique : « bip, bip, top », on parle au troisième temps.",
+    "Chaque passage crée une prise sur la piste « Prises - Personnage ». Mode Expert : enregistrement en continu, boucle, pré-roll." } },
+}
+local help_open = false
+local function help_overlay(x, y, w, h)
+  local H = HELP[page]; if not H then return end
+  col(COL.side); gfx.rect(x - 12, y - 10, w + 24, h, 1)
+  col(COL.accent); gfx.rect(x - 12, y - 10, 4, h, 1)
+  text("Aide · " .. H[1], x, y, COL.text, 3)
+  local yy = y + 44
+  for _, para in ipairs(H[2]) do yy = wrap(para, x, yy, w, COL.text, 1) + 12 end
+  if button("Fermer l'aide", x, yy + 6, 160, 30) then help_open = false end
 end
 
 local DRAW = { home = page_home, edit = page_edit, voice = page_voice, cut = page_cut, export = page_export, lines = page_lines, rec = page_rec }
@@ -599,6 +655,12 @@ local function draw()
     y = y + 40
     ::continue::
   end
+  -- mode simple / expert
+  text("Mode", 18, h - 132, COL.muted, 2)
+  local ex = expert()
+  local sbw = (sw - 36) / 2
+  if button("Simple", 16, h - 112, sbw, 26, false, not ex) then reaper.SetExtState(SEC, "expert", "0", true) end
+  if button("Expert", 20 + sbw, h - 112, sbw, 26, false, ex) then reaper.SetExtState(SEC, "expert", "1", true) end
   gfx.setfont(2); col(COL.muted)
   gfx.x, gfx.y = 18, h - 74; gfx.drawstr("Version " .. P.VERSION .. " · Nouveautés")
   if clicked and hit(16, h - 78, sw - 32, 20) then open_url("https://github.com/nicolasdebois-pixel/PodSuite/blob/main/CHANGELOG.md") end
@@ -608,14 +670,39 @@ local function draw()
     reaper.SetExtState(SEC, "hub_dock", tostring(gfx.dock(-1)), true)
   end
   local cx, cw = sw + 32, math.max(300, w - sw - 64)
-  DRAW[page](cx, 26, cw)
-  if msg ~= "" then wrap(msg, cx, h - 30, cw, COL.accent, 2) end
+  if help_open then help_overlay(cx, 26, cw, h - 40)
+  else DRAW[page](cx, 26, cw) end
+  if button(help_open and "×" or "?", w - 46, 18, 30, 30, false, help_open) then help_open = not help_open end
+  -- message (résultat d'un outil, avertissement) : en bas, refermable
+  if msg ~= "" then
+    gfx.setfont(2)
+    local lines = {}
+    for para in (msg .. "\n"):gmatch("(.-)\n") do
+      local line = ""
+      for word in para:gmatch("%S+") do
+        local t2 = line == "" and word or (line .. " " .. word)
+        if gfx.measurestr(t2) > cw - 40 and line ~= "" then lines[#lines + 1] = line; line = word else line = t2 end
+      end
+      if line ~= "" or para == "" then lines[#lines + 1] = line end
+    end
+    while #lines > 0 and lines[#lines] == "" do table.remove(lines) end
+    local lh = gfx.texth + 3
+    local bh = #lines * lh + 20
+    local by = h - bh - 12
+    col(COL.panel); gfx.rect(cx - 12, by, cw + 24, bh, 1)
+    col(COL.accent); gfx.rect(cx - 12, by, 4, bh, 1)
+    for i, l in ipairs(lines) do text(l, cx, by + 10 + (i - 1) * lh, COL.text, 2) end
+    if button("×", cx + cw - 20, by + 6, 24, 22) or (clicked and hit(cx - 12, by, cw + 24, bh)) then msg = "" end
+  end
   gfx.update()
 end
 
 local function loop()
   local ch = gfx.getchar()
   U.frame()
+  reaper.SetExtState(SEC, "hub_alive", tostring(reaper.time_precise()), false)
+  local tid = reaper.GetExtState(SEC, "toast_id")
+  if tid ~= "" and tid ~= LAST_TOAST then LAST_TOAST = tid; msg = reaper.GetExtState(SEC, "toast") end
   if ch < 0 or ch == 27 then return end
   local cap = gfx.mouse_cap
   if ch == 32 and page ~= "rec" then reaper.Main_OnCommand(40044, 0)
@@ -652,7 +739,8 @@ local function loop()
   reaper.defer(loop)
 end
 
-reaper.atexit(restore_record_mode)
+LAST_TOAST = reaper.GetExtState(SEC, "toast_id")
+reaper.atexit(function() restore_record_mode(); reaper.DeleteExtState(SEC, "hub_alive", false) end)
 find_ripple_cmds()
 if reaper.GetExtState(SEC, "snap_default") ~= "1" then          -- par défaut : items aimantés les uns aux autres
   set_snap(true); reaper.SetExtState(SEC, "snap_default", "1", true)

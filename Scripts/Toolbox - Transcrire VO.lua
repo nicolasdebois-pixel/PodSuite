@@ -12,13 +12,13 @@ local LANG_NAMES = { fr = "français", en = "anglais", it = "italien", es = "esp
 
 local target = A.get("target", "")                 -- "" = garder la langue originale
 if not P.settings_ok() then
-  reaper.MB("La transcription n'est pas encore installée.\n\nFenêtre principale › Accueil › Installer / réparer.", TITLE, 0)
+  P.notify("La transcription n'est pas encore installée.\n\nFenêtre principale › Accueil › Installer / réparer.")
   return
 end
 local it = reaper.GetSelectedMediaItem(0, 0)
 local tk = it and reaper.GetActiveTake(it)
 if not tk or reaper.TakeIsMIDI(tk) then
-  reaper.MB("Sélectionnez l'item audio de la VO (les dialogues originaux), puis relancez.", TITLE, 0)
+  P.notify("Sélectionnez l'item audio de la VO (les dialogues originaux), puis relancez.")
   return
 end
 local item_pos = reaper.GetMediaItemInfo_Value(it, "D_POSITION")
@@ -39,7 +39,7 @@ local ui = P.progress(TITLE)
 local acc = reaper.CreateTakeAudioAccessor(tk)
 local total = math.floor(item_len * P.SR)
 local w = P.wav_open(wav)
-if not w then ui.close(); reaper.MB("Impossible d'écrire dans " .. work, TITLE, 0); return end
+if not w then ui.close(); P.notify("Impossible d'écrire dans " .. work); return end
 local done, CH = 0, P.SR * 10
 local buf = reaper.new_array(CH * 2)
 local translated, vo_lang = {}, nil
@@ -87,7 +87,7 @@ function wait_whisper()
   local json = P.read_file(base .. ".json")
   if log:find("total time") and json then
     local ok, data = pcall(P.json_decode, json)
-    if not ok or type(data) ~= "table" then ui.close(); reaper.MB("Résultat de Whisper illisible.", TITLE, 0); return end
+    if not ok or type(data) ~= "table" then ui.close(); P.notify("Résultat de Whisper illisible."); return end
     vo_lang = data.result and data.result.language
     for _, s in ipairs(data.transcription or {}) do
       local txt = (s.text or ""):gsub("^%s+", ""):gsub("%s+$", "")
@@ -99,7 +99,7 @@ function wait_whisper()
     translate_next(1); return
   end
   if (log:find("error") and now - last_change > 3) or now - last_change > 300 then
-    ui.close(); reaper.MB("Whisper n'a pas pu terminer.\n\n" .. log:sub(-700), TITLE, 0); return
+    ui.close(); P.notify("Whisper n'a pas pu terminer.\n\n" .. log:sub(-700)); return
   end
   reaper.defer(wait_whisper)
 end
@@ -155,7 +155,7 @@ end
 ---------------------------------------------------------------- 4. Répliques dans REAPER
 function finish()
   ui.close()
-  if #segments == 0 then reaper.MB("Whisper n'a trouvé aucune parole dans cet item.", TITLE, 0); return end
+  if #segments == 0 then P.notify("Whisper n'a trouvé aucune parole dans cet item."); return end
   reaper.Undo_BeginBlock()
   reaper.PreventUIRefresh(1)
   local ntr = 0
@@ -174,7 +174,7 @@ function finish()
     if tr_error then msg = msg .. ".\n\nDeepL a répondu : " .. tr_error .. " (vérifiez la clé dans « Réglages de traduction »)" end
     if ntr == 0 and not quota then msg = msg .. ".\n\nLa traduction n'a pas répondu (connexion internet ?) : les répliques sont en version originale" end
   elseif target ~= "" and vo_lang == target then msg = msg .. " (la VO est déjà en " .. (LANG_NAMES[target] or target) .. ")" end
-  reaper.MB(msg .. ".\n\nAttribuez-les ensuite aux personnages : page Répliques, sélectionnez les items puis cliquez sur le personnage.", TITLE, 0)
+  P.notify(msg .. ".\n\nAttribuez-les ensuite aux personnages : page Répliques, sélectionnez les items puis cliquez sur le personnage.")
 end
 
 reaper.defer(read_step)

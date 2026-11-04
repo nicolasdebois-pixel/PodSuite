@@ -9,17 +9,17 @@ local P = dofile(dir .. "Toolbox_lib.lua")
 ---------------------------------------------------------------- Préparation
 local proj, projfn, datadir, projname = P.project()
 if not projfn then
-  reaper.MB("Enregistrez d'abord le projet : la boîte à outils range ses fichiers à côté de lui.", "Podcast & ADR Toolbox", 0)
+  P.notify("Enregistrez d'abord le projet : la boîte à outils range ses fichiers à côté de lui.")
   return
 end
 if not P.settings_ok() then
-  reaper.MB("Indiquez d'abord où se trouvent Whisper et son modèle.", "Podcast & ADR Toolbox", 0)
+  P.notify("Indiquez d'abord où se trouvent Whisper et son modèle.")
   if not P.settings_dialog() then return end
 end
 
 local nsel = reaper.CountSelectedMediaItems(0)
 if nsel == 0 then
-  reaper.MB("Sélectionnez les items à transcrire : un item (ou plusieurs) par intervenant, chacun sur sa piste.", "Podcast & ADR Toolbox", 0)
+  P.notify("Sélectionnez les items à transcrire : un item (ou plusieurs) par intervenant, chacun sur sa piste.")
   return
 end
 
@@ -29,7 +29,7 @@ for i = 0, nsel - 1 do
   local tr = reaper.GetMediaItem_Track(it)
   local _, ext = reaper.GetSetMediaTrackInfo_String(tr, "P_EXT:PODSUITE", "", false)
   if ext ~= "" then
-    reaper.MB("La sélection contient des items d'une piste de montage (✂).\nSélectionnez les items des rushes d'origine.", "Podcast & ADR Toolbox", 0)
+    P.notify("La sélection contient des items d'une piste de montage (✂).\nSélectionnez les items des rushes d'origine.")
     return
   end
   if not tindex[tr] then tindex[tr] = true; tracks[#tracks + 1] = tr end
@@ -186,7 +186,7 @@ function write_pass()
       local c = chunks[ci]
       if not wav then
         wav = P.wav_open(chunk_wav(ci))
-        if not wav then cleanup_readers(); ui.close(); reaper.MB("Impossible d'écrire dans " .. datadir, "Podcast & ADR Toolbox", 0) return end
+        if not wav then cleanup_readers(); ui.close(); P.notify("Impossible d'écrire dans " .. datadir) return end
       end
       local m = c.segs[si]
       local nTot = math.floor(m.len * P.SR + 0.5)
@@ -281,7 +281,7 @@ function wait_whisper()
     if use_dtw then last_size = -1; start_whisper(false) return end   -- nouvel essai sans DTW
     ui.close()
     local tail = log:sub(-900)
-    reaper.MB("Whisper n'a pas pu terminer.\n\nVérifiez les réglages (Toolbox - Reglages de transcription).\n\nDernières lignes du journal :\n" .. (tail ~= "" and tail or "(vide : le programme n'a pas démarré)"), "Podcast & ADR Toolbox", 0)
+    P.notify("Whisper n'a pas pu terminer.\n\nVérifiez les réglages (Toolbox - Reglages de transcription).\n\nDernières lignes du journal :\n" .. (tail ~= "" and tail or "(vide : le programme n'a pas démarré)"))
     return
   end
   reaper.defer(wait_whisper)
@@ -316,7 +316,7 @@ function finish()
   for k, chunk in ipairs(chunks) do
   local ok, res = pcall(P.json_decode, P.read_file(chunk_base(k) .. ".json") or "")
   if not ok or type(res) ~= "table" or type(res.transcription) ~= "table" then
-    ui.close(); reaper.MB("Le fichier produit par Whisper est illisible (morceau " .. k .. ").\n" .. tostring(res), "Podcast & ADR Toolbox", 0); return
+    ui.close(); P.notify("Le fichier produit par Whisper est illisible (morceau " .. k .. ").\n" .. tostring(res)); return
   end
   for _, seg in ipairs(res.transcription) do
     local so = seg.offsets or {}
@@ -424,8 +424,8 @@ function finish()
   reaper.Undo_EndBlock("Toolbox : marqueurs de clics", -1)
 
   ui.close()
-  reaper.MB(string.format("Transcription terminée : %d mots, %d clic(s)%s.\n\nOuvrez la page de dérushage :\n" .. P.web_url() .. "\n\n(Le script Toolbox - Serveur de derushage doit tourner : c'est lui qui applique le montage dans REAPER.)",
-    #words, #clicks, tpl and "" or " (clicker non calibré : lancez Toolbox - Calibrer le clicker pour activer la détection)"), "Podcast & ADR Toolbox", 0)
+  P.notify(string.format("Transcription terminée : %d mots, %d clic(s)%s.\n\nOuvrez la page de dérushage :\n" .. P.web_url() .. "\n\n(Le script Toolbox - Serveur de derushage doit tourner : c'est lui qui applique le montage dans REAPER.)",
+    #words, #clicks, tpl and "" or " (clicker non calibré : lancez Toolbox - Calibrer le clicker pour activer la détection)"))
 end
 
 P.install_page()

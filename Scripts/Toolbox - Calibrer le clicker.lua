@@ -9,7 +9,7 @@ local TITLE = "Podcast & ADR Toolbox — Calibrer le clicker"
 local tr = reaper.GetSelectedTrack(0, 0)
 if not tr and reaper.CountSelectedMediaItems(0) > 0 then tr = reaper.GetMediaItem_Track(reaper.GetSelectedMediaItem(0, 0)) end
 if not tr then
-  reaper.MB("Sélectionnez la piste qui contient le clic, placez le curseur juste avant le clic, puis relancez.", TITLE, 0)
+  P.notify("Sélectionnez la piste qui contient le clic, placez le curseur juste avant le clic, puis relancez.")
   return
 end
 
@@ -26,7 +26,7 @@ r.close()
 
 local tpl, gap, peak = P.template_from(s)
 if not tpl then
-  reaper.MB("Je ne trouve pas de clic net juste après le curseur (" .. gap .. ").\n\nPlacez le curseur un tout petit peu AVANT le clic (moins d'une seconde avant), sur la piste du micro, puis relancez.", TITLE, 0)
+  P.notify("Je ne trouve pas de clic net juste après le curseur (" .. gap .. ").\n\nPlacez le curseur un tout petit peu AVANT le clic (moins d'une seconde avant), sur la piste du micro, puis relancez.")
   return
 end
 local t = a + (peak - 1) / P.SR
@@ -37,4 +37,4 @@ if reaper.MB(string.format("Clic trouvé à %d:%05.2f (le curseur y est placé).
     TITLE, 4) ~= 6 then return end
 P.set("click_template", tpl)
 P.set("click_gap", string.format("%.3f", gap))
-reaper.MB("Clicker calibré.\n\nRelancez « Toolbox - Transcrire » : les clics seront détectés et apparaîtront dans la page de dérushage.", TITLE, 0)
+P.notify("Clicker calibré.\n\nRelancez « Toolbox - Transcrire » : les clics seront détectés et apparaîtront dans la page de dérushage.")

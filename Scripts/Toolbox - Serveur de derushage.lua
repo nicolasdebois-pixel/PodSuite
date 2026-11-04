@@ -287,7 +287,7 @@ local function build_montage()
   reaper.SetExtState(P.SECTION, "mapver", tostring(reaper.time_precise()), false)
   if skipped and not warned_source then
     warned_source = true
-    reaper.MB("Certains items des rushes n'ont pas de fichier audio direct (item découpé en section, inversé…).\nIls ne figurent pas dans le montage : appliquez « Glue » sur ces items puis relancez.", "Podcast & ADR Toolbox", 0)
+    P.notify("Certains items des rushes n'ont pas de fichier audio direct (item découpé en section, inversé…).\nIls ne figurent pas dans le montage : appliquez « Glue » sur ces items puis relancez.")
   end
 end
 
