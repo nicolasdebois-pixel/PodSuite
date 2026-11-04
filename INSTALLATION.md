@@ -102,7 +102,7 @@ Les boutons en haut à droite de la bande règlent la vitesse de défilement (**
 
 **La vidéo** : à l'ouverture de la bande, la vidéo du projet est copiée pour le serveur web de REAPER, puis chargée par la tablette (comptez quelques secondes à une minute selon la taille et le Wi-Fi). Elle doit être dans un format lisible par un navigateur : **MP4 (H.264)** de préférence. Si la page indique « format vidéo non lisible », exportez la vidéo en MP4 H.264, en résolution réduite (720p suffit), puis remplacez-la dans REAPER.
 
-**Lire la bande** : le texte défile vers la barre verticale ; on dit chaque syllabe quand elle passe sous la barre. Les deux petits traits avant la réplique à enregistrer correspondent au double bip : « bip, bip, top », on parle au troisième temps. Les signes **RESP** (respiration), **BOUCHE** (bouche fermée), **RIRE** et **SOUPIR** viennent des codes `(r)`, `(b)`, `(rire)` et `(s)` tapés dans le texte des répliques.
+**Lire la bande** : le bandeau sous l'image affiche toujours la réplique à dire, en entier, avec le temps restant, puis « À VOUS ». En dessous, le texte défile vers la barre verticale ; on dit chaque syllabe quand elle passe sous la barre. La bande suit la fréquence de l'écran (indiquée en haut, par exemple « 60 i/s »). Les deux petits traits avant la réplique à enregistrer correspondent au double bip : « bip, bip, top », on parle au troisième temps. Les signes **RESP** (respiration), **BOUCHE** (bouche fermée), **RIRE** et **SOUPIR** viennent des codes `(r)`, `(b)`, `(rire)` et `(s)` tapés dans le texte des répliques.
 
 ---
 

@@ -110,7 +110,7 @@ local function ripple_mode()
 end
 
 ---------------------------------------------------------------- Interface
-local W, H = 860, 600
+local W, H = 860, 680
 local dock = tonumber(reaper.GetExtState(SEC, "hub_dock")) or 0
 gfx.init(TITLE, W, H, dock)
 local COL = {
@@ -136,13 +136,13 @@ local function wrap(s, x, y, w, c, f)
 end
 local function hit(x, y, w, h) return gfx.mouse_x >= x and gfx.mouse_x <= x + w and gfx.mouse_y >= y and gfx.mouse_y <= y + h end
 local clicked, mouse_was = false, false
-local function button(label, x, y, w, h, primary, active, disabled)
+local function button(label, x, y, w, h, primary, active, disabled, color)
   local over = hit(x, y, w, h) and not disabled
-  if disabled then col(COL.panel, 0.6) elseif primary or active then col(COL.accent, over and 1 or 0.88) else col(COL.panel) end
+  if disabled then col(COL.panel, 0.6) elseif color then col(color, over and 1 or 0.85) elseif primary or active then col(COL.accent, over and 1 or 0.88) else col(COL.panel) end
   gfx.rect(x, y, w, h, 1)
-  if not (primary or active) then col(COL.line); gfx.rect(x, y, w, h, 0) end
+  if not (primary or active or color) then col(COL.line); gfx.rect(x, y, w, h, 0) end
   gfx.setfont(4); local tw = gfx.measurestr(label)
-  if disabled then col(COL.muted) elseif primary or active then gfx.set(0.1, 0.06, 0.02) else col(COL.text) end
+  if disabled then col(COL.muted) elseif color then gfx.set(1, 1, 1) elseif primary or active then gfx.set(0.1, 0.06, 0.02) else col(COL.text) end
   gfx.x, gfx.y = x + (w - tw) / 2, y + (h - gfx.texth) / 2; gfx.drawstr(label)
   return clicked and over
 end
@@ -399,6 +399,11 @@ local function page_lines(x, y, w)
     v = ok and v:match("^%s*(.-)%s*$") or ""
     if v ~= "" then reaper.Undo_BeginBlock(); A.char_track(v); reaper.Undo_EndBlock("Toolbox : nouveau personnage", -1); A.set("char", v); reaper.TrackList_AdjustWindows(false) end
   end
+  -- retirer les voix de la VO
+  y = cy + 46
+  local pu
+  y, pu = action_row(x, y, w, "Retirer les voix de la VO", "Pour garder la musique et les bruitages sous le doublage : Ultimate Vocal Remover (gratuit, Mac et Windows, hors ligne) sépare les voix du reste. Importez ensuite la piste sans voix dans REAPER.", "Télécharger UVR")
+  if pu then open_url("https://github.com/Anjok07/ultimatevocalremovergui/releases") end
 end
 
 local tablet_url
@@ -408,18 +413,21 @@ local function ensure_adr_server() if not adr_server_on() then run(own("adr_serv
 function rec_go(D, i, how)
   local l = D.lines[i]; if not l then return end
   ensure_adr_server()
-  local preroll = tonumber(A.get("preroll", "3")) or 3
+  local preroll = tonumber(A.get("preroll", "3")) or 0             -- « Off » = 0
+  local continuous = A.get("rec_mode", "line") == "free"
   if reaper.GetPlayState() & 5 ~= 0 then reaper.OnStopButton() end
   reaper.Undo_BeginBlock()
   A.cue(l, preroll)
   A.set("curpos", string.format("%.3f", l.pos))
   reaper.Undo_EndBlock("Toolbox : réplique " .. i, -1)
+  if continuous then reaper.DeleteExtState(A.SEC, "stop_at", false) end   -- en continu : pas d'arrêt automatique
   if how == "listen" then reaper.Main_OnCommand(1007, 0)
   elseif how == "rec" then
-    local punch = A.cmd("punch"); if punch then reaper.Main_OnCommand(punch, 0) end
+    local mode = A.cmd(continuous and "normal" or "punch"); if mode then reaper.Main_OnCommand(mode, 0) end
     reaper.Main_OnCommand(1013, 0)
   end
 end
+local GREEN, RED = { 0.19, 0.62, 0.34 }, { 0.86, 0.22, 0.2 }
 
 local function page_rec(x, y, w)
   y = header(x, y, w, "Enregistrement", "La bande rythmo s'affiche dans un navigateur : sur l'écran de la cabine ou sur une tablette du même réseau Wi-Fi, avec la vidéo du film au-dessus, calée sur REAPER.")
@@ -471,14 +479,22 @@ local function page_rec(x, y, w)
   -- transport
   local bw = (w - 3 * 8) / 4
   local dis = not i
-  if button("◀  Précédente", x, y, bw, 40, false, false, dis or i <= 1) then rec_go(D, i - 1) end
-  if button("▶  Écouter", x + (bw + 8), y, bw, 40, false, false, dis) then rec_go(D, i, "listen") end
-  local recording = reaper.GetPlayState() & 4 == 4
-  if button(recording and "■  Stop" or "●  Enregistrer", x + 2 * (bw + 8), y, bw, 40, true, false, dis) then
-    if recording then reaper.OnStopButton() else rec_go(D, i, "rec") end
+  local ps = reaper.GetPlayState()
+  local running, recording = ps & 1 == 1, ps & 4 == 4
+  if button("◀  Précédente", x, y, bw, 40, false, false, dis or i <= 1 or recording) then rec_go(D, i - 1) end
+  if button(running and "■  Arrêter" or "▶  Écouter", x + (bw + 8), y, bw, 40, false, false, dis and not running, GREEN) then
+    if running then reaper.OnStopButton() else rec_go(D, i, "listen") end
   end
-  if button("Suivante  ▶", x + 3 * (bw + 8), y, bw, 40, false, false, dis or i >= #lines) then rec_go(D, i + 1) end
-  y = y + 54
+  if button(recording and "●  Enregistrement…" or "●  Enregistrer", x + 2 * (bw + 8), y, bw, 40, false, false, dis or running, RED) then rec_go(D, i, "rec") end
+  if button("Suivante  ▶", x + 3 * (bw + 8), y, bw, 40, false, false, dis or i >= #lines or recording) then rec_go(D, i + 1) end
+  y = y + 52
+  -- mode d'enregistrement
+  text("Enregistrer", x, y + 7, COL.muted, 2)
+  local free = A.get("rec_mode", "line") == "free"
+  local mx = x + 90
+  local w1, c1 = chip("Une réplique (arrêt automatique)", mx, y, nil, not free); if c1 then A.set("rec_mode", "line") end
+  local _, c2 = chip("En continu (jusqu'à « Arrêter »)", mx + w1 + 6, y, nil, free); if c2 then A.set("rec_mode", "free") end
+  y = y + 40
   -- options
   local function toggle(label, key, def, ox)
     local v = A.get(key, def) == "1"
@@ -487,17 +503,18 @@ local function page_rec(x, y, w)
   end
   cx = x
   cx = cx + toggle("Bips", "bips", "1", cx) + 6
-  cx = cx + toggle("Boucle", "loop", "0", cx) + 6
+  if A.get("rec_mode", "line") ~= "free" then cx = cx + toggle("Boucle", "loop", "0", cx) + 6 end
   cx = cx + toggle("Suivante après la prise", "auto_next", "1", cx) + 18
   y = y + 38; cx = x
   text("Pré-roll", cx, y + 7, COL.muted, 2); cx = cx + 70
   local pr = A.get("preroll", "3")
-  for _, v in ipairs({ "3", "4", "5", "6" }) do
-    local w2, c2 = chip(v .. " s", cx, y, nil, pr == v); if c2 then A.set("preroll", v) end
+  for _, v in ipairs({ "off", "2", "3", "4", "5" }) do
+    local w2, c2 = chip(v == "off" and "Off" or (v .. " s"), cx, y, nil, pr == v); if c2 then A.set("preroll", v) end
     cx = cx + w2 + 4
   end
+  if pr == "off" and A.get("bips", "1") == "1" then text("(sans pré-roll, pas de bips)", cx + 8, y + 7, COL.muted, 2) end
   y = y + 42
-  wrap("Raccourcis : ← / → réplique précédente / suivante · R enregistrer · Espace lecture/stop. Chaque passage crée une nouvelle prise sur la piste « Prises - Personnage ».", x, y, w, COL.muted, 2)
+  wrap("Raccourcis : ← / → réplique précédente / suivante · R enregistrer · Espace écouter/arrêter. Chaque passage crée une nouvelle prise sur la piste « Prises - Personnage ». En continu, l'enregistrement part de la réplique affichée et enchaîne jusqu'à « Arrêter ».", x, y, w, COL.muted, 2)
 end
 
 local DRAW = { home = page_home, edit = page_edit, voice = page_voice, cut = page_cut, export = page_export, lines = page_lines, rec = page_rec }
@@ -542,15 +559,25 @@ local function loop()
   local ch = gfx.getchar()
   if ch < 0 or ch == 27 then return end
   local cap = gfx.mouse_cap
-  if ch == 32 then reaper.Main_OnCommand(40044, 0)
+  if ch == 32 and page ~= "rec" then reaper.Main_OnCommand(40044, 0)
   elseif ch == 26 or (ch == 122 and cap & 4 == 4) then reaper.Main_OnCommand(cap & 8 == 8 and 40030 or 40029, 0)
   elseif ch == 25 or (ch == 121 and cap & 4 == 4) then reaper.Main_OnCommand(40030, 0) end
+  if page == "rec" and ch == 32 then ch = 0; if reaper.GetPlayState() & 1 == 1 then reaper.OnStopButton() else local D = adr_data(); rec_go(D, A.current(D.lines) or 1, "listen") end end
   if page == "rec" and (ch == 1818584692 or ch == 1919379572 or ch == 114 or ch == 82) then   -- ← → R
     local D = adr_data()
     local i = A.current(D.lines) or 1
     if ch == 1818584692 then rec_go(D, math.max(1, i - 1))
     elseif ch == 1919379572 then rec_go(D, math.min(#D.lines, i + 1))
     elseif reaper.GetPlayState() & 4 == 0 then rec_go(D, i, "rec") end
+  end
+  do                                                                -- en continu : à l'arrêt, on se place sur la réplique suivante
+    local rec_now = reaper.GetPlayState() & 4 == 4
+    if rec_now then REC_LAST = reaper.GetPlayPosition() end
+    if REC_WAS and not rec_now and A.get("rec_mode", "line") == "free" and A.get("auto_next", "1") == "1" and REC_LAST then
+      local D = adr_data()
+      for k, l in ipairs(D.lines) do if l.pos >= REC_LAST - 0.2 then rec_go(D, k); break end end
+    end
+    REC_WAS = rec_now
   end
   if reaper.GetExtState(A.SEC, "just_recorded") == "1" then          -- prise terminée : réplique suivante
     reaper.DeleteExtState(A.SEC, "just_recorded", false)

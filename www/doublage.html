@@ -44,6 +44,8 @@
   <span class="k">− / +</span>vitesse de défilement (aussi ↓ / ↑)<br>
   <span class="k">◂ / ▸ 10 ms</span>caler la bande sur l'image (aussi ← / →)<br>
   <span class="k">⛶</span>plein écran (aussi touche F ou double-tap)<br>
+  <span class="k">Bandeau du haut</span>la réplique à dire, en entier, avec le temps restant ; « À VOUS » pendant la réplique<br>
+  <span class="k">… i/s</span>fréquence d'affichage : la bande suit celle de l'écran (60, 120 Hz…)<br>
   <span class="k">Vidéo</span>l'image du film au-dessus de la bande, calée sur REAPER (le son reste dans le casque)<br>
   Réglages mémorisés sur cet appareil.
 </div>
@@ -193,7 +195,8 @@ async function loadVideo(){
   }
   V.loading = false;
 }
-function vidH(){ return showVid && (V.key || V.status) ? Math.round(Math.min(H * 0.5, W * 9 / 16)) : 0; }
+function vidH(){ return showVid && (V.key || V.status) ? Math.round(Math.min(H * 0.45, W * 9 / 16)) : 0; }
+function promptH(){ return Math.round(Math.max(56, Math.min(96, H * 0.11))); }
 function syncVideo(t){
   const vh = vidH();
   vid.style.display = vh && V.ready ? 'block' : 'none';
@@ -278,11 +281,48 @@ function drawCue(c, x0, w, y, lh, fs, alpha){
   drawText(c, x0 + 4, y + lh*0.68, Math.max(4, w - 8), fs);
   ctx.globalAlpha = 1;
 }
+// « Souffleur » : la réplique à dire (ou en cours) toujours affichée en entier, au-dessus de la bande
+function plain(text){ return text.replace(/\((r|b|rire|s)\)/gi, (m, k) => '[' + TOKENS[k.toLowerCase()] + ']').replace(/\s+/g, ' ').trim(); }
+function drawPrompter(y, h, tt){
+  ctx.fillStyle = '#101014'; ctx.fillRect(0, y, W, h);
+  ctx.fillStyle = '#26262d'; ctx.fillRect(0, y + h - 1, W, 1);
+  const dimmed = c => focus && lanes[c.row] && lanes[c.row].name !== focus;
+  const waiting = !playing() && curpos != null && cueFrom != null && Math.abs(srv.pos - cueFrom) < 0.05;
+  let c = null, state = '';
+  if (waiting) { c = cues.find(q => Math.abs(q.pos - curpos) < 0.002); state = 'next'; }
+  if (!c) { c = cues.find(q => !dimmed(q) && tt >= q.pos && tt < q.pos + q.len); state = 'now'; }
+  if (!c) { c = cues.find(q => !dimmed(q) && q.pos > tt); state = 'next'; }
+  if (!c) { ctx.fillStyle = '#55555c'; ctx.font = '500 16px system-ui, sans-serif'; ctx.fillText('Pas d\u2019autre réplique.', 16, y + h/2 + 6); return; }
+  // pastille du personnage
+  ctx.font = `800 ${Math.max(12, h*0.2)|0}px system-ui, sans-serif`;
+  const tag = c.name.toUpperCase(), tw = ctx.measureText(tag).width + 20;
+  ctx.fillStyle = c.ink; roundRect(12, y + h*0.14, tw, h*0.34, 6); ctx.fill();
+  ctx.fillStyle = '#111'; ctx.fillText(tag, 22, y + h*0.14 + h*0.25);
+  // état : « dans 2,4 s » / « À VOUS »
+  let st, stc;
+  if (state === 'now') { st = 'À VOUS'; stc = '#ff453a'; }
+  else { const d = c.pos - tt; st = playing() ? `dans ${d.toFixed(1).replace('.', ',')} s` : 'prochaine réplique'; stc = '#9a9aa2'; }
+  ctx.font = `700 ${Math.max(12, h*0.2)|0}px system-ui, sans-serif`;
+  ctx.fillStyle = stc; ctx.fillText(st, 12, y + h*0.86);
+  // texte entier, taille ajustée à la largeur
+  const x0 = Math.max(tw, ctx.measureText(st).width) + 30, avail = W - x0 - 16, txt = plain(c.text);
+  let fs = Math.max(14, h * 0.42) | 0;
+  ctx.font = `600 ${fs}px system-ui, sans-serif`;
+  while (fs > 13 && ctx.measureText(txt).width > avail * 2) { fs -= 1; ctx.font = `600 ${fs}px system-ui, sans-serif`; }
+  ctx.fillStyle = state === 'now' ? '#ffffff' : '#e6e6ea';
+  if (ctx.measureText(txt).width <= avail) { ctx.fillText(txt, x0, y + h/2 + fs*0.35); return; }
+  // sur deux lignes
+  const words = txt.split(' '); let l1 = '';
+  for (const wd of words) { const tst = l1 ? l1 + ' ' + wd : wd; if (ctx.measureText(tst).width > avail) break; l1 = tst; }
+  const l2 = txt.slice(l1.length).trim();
+  fs = Math.min(fs, (h * 0.42) | 0); ctx.font = `600 ${fs}px system-ui, sans-serif`;
+  ctx.fillText(l1, x0, y + h*0.45); ctx.fillText(l2, x0, y + h*0.45 + fs*1.1);
+}
 function fmt(t){
   const s = Math.max(0,t), h = Math.floor(s/3600), m = Math.floor(s/60)%60, sec = Math.floor(s)%60, d = Math.floor(s*10)%10;
   return `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}.${d}`;
 }
-function draw(t){
+function draw(t, realT){
   ctx.fillStyle = '#0d0d0f'; ctx.fillRect(0,0,W,H);
   ctx.textBaseline = 'alphabetic';
   const rec = recording();
@@ -295,9 +335,13 @@ function draw(t){
   if (srv.ok && !srv.scriptOk) { ctx.fillStyle = '#ff9f0a'; ctx.fillText('Dans REAPER : page « Enregistrement » de la boîte à outils', 300, 28); }
   else if (focus) { ctx.fillStyle = '#d8d8de'; ctx.fillText('Personnage : ' + focus.toUpperCase(), 320, 28); }
   if (srv.rate !== 1) { ctx.fillStyle = '#64d2ff'; ctx.fillText(`× ${srv.rate.toFixed(2)}`, 560, 28); }
+  ctx.fillStyle = '#55555c'; ctx.font = '500 13px system-ui, sans-serif'; ctx.textAlign = 'right';
+  ctx.fillText(`${hz} i/s`, W - 470, 28); ctx.textAlign = 'left';
   if (performance.now() < toastUntil) { ctx.fillStyle = '#fff'; ctx.fillText(toast, 660, 28); }
 
-  const TOP = HEAD + vidH();
+  const PT = HEAD + vidH();
+  drawPrompter(PT, promptH(), realT);
+  const TOP = PT + promptH();
   const n = Math.max(1, lanes.length);
   const lh = Math.min(240, (H - TOP) / n);
   const fs = Math.max(16, lh * 0.40) | 0;
@@ -360,6 +404,8 @@ function draw(t){
   ctx.beginPath(); ctx.moveTo(barX-10, TOP); ctx.lineTo(barX+10, TOP); ctx.lineTo(barX, TOP+11); ctx.fill();
 }
 let playStart = 0, wasPlaying = false;
+// fréquence réelle d'affichage : l'image est redessinée à chaque rafraîchissement de l'écran (60, 120 Hz…)
+const frameDt = []; let hz = 0;
 function justStarted(now){                 // les 0,3 s qui suivent le départ de la lecture : on laisse glisser
   if (playing() && !wasPlaying) playStart = now;
   wasPlaying = playing();
@@ -367,6 +413,8 @@ function justStarted(now){                 // les 0,3 s qui suivent le départ d
 }
 function frame(now){
   const dt = Math.min(0.1, (now - lastFrame)/1000); lastFrame = now;
+  frameDt.push(dt); if (frameDt.length > 90) frameDt.shift();
+  if (frameDt.length >= 30) { const s2 = [...frameDt].sort((a,b)=>a-b); hz = Math.round(1 / s2[s2.length >> 1]); }
   updateClock(now, dt);
   // À l'arrêt, curseur posé au pré-roll d'une réplique (Précédente / Suivante) : on montre la réplique à dire,
   // son début juste après la barre, et l'image correspondante. En lecture, on suit REAPER.
@@ -376,7 +424,7 @@ function frame(now){
   const glide = !playing() || justStarted(now);          // à l'arrêt et au départ : glissement doux ; en lecture : calage exact
   if (shown == null || !glide || Math.abs(t - shown) > 30) shown = t;
   else shown += (t - shown) * Math.min(1, dt * 14);
-  draw(shown);
+  draw(shown, disp + offset/1000);
   syncVideo(waiting ? curpos : playing() ? t : shown);
   requestAnimationFrame(frame);
 }

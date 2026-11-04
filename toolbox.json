@@ -2,7 +2,7 @@
   "name": "Podcast & ADR Toolbox",
   "category": "Toolbox",
   "package": "Podcast & ADR Toolbox",
-  "version": "0.9.3",
+  "version": "0.9.4",
   "author": "Nicolas Debois",
   "description": "Boîte à outils gratuite pour REAPER : dérushage de podcast par le texte (Whisper en local), ripple sur les bords des items, traitement de la voix (Vocal level & de-esser), contrôle du niveau avant l'export, et doublage (ADR) avec bande rythmo sur tablette. Une seule action à retenir : « Podcast & ADR Toolbox ».",
   "files": [
@@ -83,6 +83,11 @@
     }
   ],
   "changelog": [
-    "Bande rythmo : à l'arrêt, après « Précédente » ou « Suivante », le comédien voit la réplique qu'il va dire (son début juste après la barre) et l'image de son début ; au lancement, la bande glisse en douceur jusqu'au pré-roll puis suit REAPER"
+    "Bande rythmo : un bandeau affiche toujours la réplique à dire en entier, avec le temps restant (« dans 2,4 s »), puis « À VOUS » pendant la réplique — même pendant le pré-roll",
+    "La bande s'affiche à la fréquence de l'écran (60, 120 Hz…), indiquée en haut (« 60 i/s »)",
+    "Pré-roll « Off »",
+    "Boutons : « Écouter » en vert (devient « Arrêter » pendant la lecture), « Enregistrer » en rouge",
+    "Deux modes d'enregistrement : une réplique (arrêt automatique) ou en continu jusqu'à « Arrêter » ; ensuite on se place sur la réplique suivante",
+    "Page Répliques : lien vers Ultimate Vocal Remover (gratuit) pour retirer les voix de la VO"
   ]
 }
