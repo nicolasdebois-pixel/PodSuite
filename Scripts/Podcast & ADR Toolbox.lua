@@ -272,18 +272,109 @@ local function page_edit(x, y, w)
   end
 end
 
-local function page_voice(x, y, w)
-  y = header(x, y, w, "Voix", "Vocal level & de-esser rend la voix plus régulière et plus propre : niveau, sifflantes, plosives, voix trop proche du micro, équilibre tonal. Il dessine des courbes sur les items, rien n'est figé.")
-  local p
-  if vocal_path then
-    y, p = action_row(x, y, w, "Vocal level & de-esser", "Sélectionnez les items de voix (une fois le montage terminé), puis ouvrez l'outil.", "Ouvrir", true)
-    if p then run(vocal_path) end
-  else
-    col(COL.panel); gfx.rect(x, y, w, 96, 1)
-    text("Outil introuvable", x + 16, y + 14, COL.text, 5)
-    wrap("Mettez la boîte à outils à jour : Extensions › ReaPack › Synchronize packages.", x + 16, y + 40, w - 220, COL.muted, 2)
-    if button("Vérifier à nouveau", x + w - 176, y + 56, 160, 26) then reaper.DeleteExtState(SEC, "vocal_path", true); vocal_path = find_vocal(); msg = vocal_path and "Trouvé !" or "Toujours introuvable." end
+---------------------------------------------------------------- Voix : Vocal level & de-esser, dans la page
+local V                                                    -- moteur, chargé à la première visite
+local function vocal()
+  if not V then
+    local ok, mod = pcall(dofile, dir .. "Toolbox_vocal.lua")
+    if ok then V = mod end
   end
+  return V
+end
+local VROWS = {
+  { key = "rider_on", lv = "lv_rider", set = "rider", name = "Niveau régulier", desc = "Remonte les passages faibles, baisse les trop forts" },
+  { key = "de_on", lv = "lv_de", set = "de", name = "Sifflantes", desc = "Adoucit les « s », « ch » et « z » qui sifflent" },
+  { key = "plo_on", lv = "lv_plo", set = "plo", name = "Plosives", desc = "« p » et « b » qui soufflent dans le micro" },
+  { key = "prox_on", lv = "lv_prox", set = "prox", name = "Voix trop proche", desc = "Graves qui gonflent près du micro" },
+  { key = "eq_on", lv = "lv_eq", set = "eq", name = "Équilibre de la voix", desc = "Voix trop sourde, nasale ou brillante" },
+}
+local function fmt_db(v) return (v > 0 and "+" or (v < 0 and "−" or "")) .. string.format("%g dB", math.abs(v)) end
+
+local function page_voice(x, y, w)
+  local Vm = vocal()
+  if not Vm then
+    y = header(x, y, w, "Voix", "Outil introuvable : mettez la boîte à outils à jour (Extensions › ReaPack › Synchronize packages).")
+    return
+  end
+  local S, UI, ST = Vm.S, Vm.UI, Vm.ST
+  text("Voix", x, y, COL.text, 3)
+  local n, an = #ST.takes, Vm.analysed_count()
+  text(n == 0 and "Sélectionnez les items de voix (une fois le montage terminé)"
+    or string.format("%d item%s sélectionné%s · %s", n, n > 1 and "s" or "", n > 1 and "s" or "", an == n and ("analysé" .. (n > 1 and "s" or "")) or "pas encore analysé"),
+    x, y + 30, COL.muted, 2)
+  local chg = false
+  if button("Parole", x + w - 244, y, 96, 28, false, S.mode == "parole") then S.mode = "parole"; for k, v in pairs(Vm.PRESETS.parole) do S[k] = v end; chg = true end
+  if button("Chant", x + w - 142, y, 98, 28, false, S.mode == "chant") then S.mode = "chant"; for k, v in pairs(Vm.PRESETS.chant) do S[k] = v end; chg = true end
+  y = y + 58
+  local why = UI.why
+  for _, r in ipairs(VROWS) do
+    col(COL.line); gfx.line(x, y, x + w, y)
+    local on = S[r.key] == 1
+    local cx, cy = x, y + 12
+    col(on and COL.accent or COL.panel); gfx.rect(cx, cy, 18, 18, 1)
+    if not on then col(COL.line); gfx.rect(cx, cy, 18, 18, 0) end
+    if on then gfx.set(0.1, 0.06, 0.02); gfx.line(cx + 4, cy + 9, cx + 8, cy + 13); gfx.line(cx + 8, cy + 13, cx + 14, cy + 5) end
+    if clicked and hit(cx - 4, cy - 4, 300, 26) then S[r.key] = on and 0 or 1; chg = true; on = not on end
+    text(r.name, x + 28, y + 9, on and COL.text or COL.muted, 4)
+    if why and on and why[r.key] then text(why[r.key], x + 28, y + 31, COL.ok, 2)   -- « pourquoi » : ce qui a été fait
+    else text(r.desc, x + 28, y + 31, COL.muted, 2) end
+    local bx = x + w - 3 * 66
+    for i, lab in ipairs({ "Léger", "Moyen", "Fort" }) do
+      if button(lab, bx + (i - 1) * 66, y + 7, 62, 26, false, on and S[r.lv] == i, not on) and on then
+        S[r.lv] = i; for k, v in pairs(Vm.LEVELS[r.set][i]) do S[k] = v end; chg = true
+      end
+    end
+    y = y + 58
+  end
+  col(COL.line); gfx.line(x, y, x + w, y)
+  y = y + 12
+  -- retouche locale (zone sélectionnée)
+  local st, nz, zs, zt = Vm.zone_state()
+  text("Retouche locale", x, y, COL.text, 4)
+  if st then
+    text(string.format("zone %.2f → %.2f s%s", zs, zt, nz > 0 and string.format(" · %d retouche%s", nz, nz > 1 and "s" or "") or ""), x + 140, y + 1, COL.accent, 2)
+    if nz > 0 and button("Effacer", x + w - 90, y - 4, 90, 24) then Vm.retouch(nil) end
+  else
+    text("sélection temporelle sur le son à retoucher (ex. le « B » de « Bonjour »)", x + 140, y + 1, COL.muted, 2)
+  end
+  y = y + 26
+  local cw3 = (w - 2 * 12) / 3
+  for j, k in ipairs(Vm.RET_ORDER) do
+    local R = Vm.RET[k]
+    local gx = x + (j - 1) * (cw3 + 12)
+    text(R.name, gx, y + 4, st and COL.text or COL.muted, 2)
+    local bw = (cw3 - 70) / 4
+    for i, v in ipairs(R.steps) do
+      local shown = (k == "lvl") and v or -v
+      if button(fmt_db(shown):gsub(" dB", ""), gx + 70 + (i - 1) * bw, y, bw - 3, 24, false, st and st[k] == v, not st) and st then Vm.retouch(k, v) end
+    end
+  end
+  y = y + 38
+  -- actions
+  if UI.progress then col(COL.line); gfx.rect(x, y, w, 6, 1); col(COL.accent); gfx.rect(x, y, math.floor(w * UI.progress), 6, 1); y = y + 12 end
+  if UI.stats then text(UI.stats, x, y, COL.ok, 2); y = y + 18 end
+  if UI.msg ~= "" then text(UI.msg, x, y, COL.muted, 2); y = y + 18 end
+  y = y + 6
+  if ST.job and ST.cancel_job then
+    if button("Annuler l'analyse", x, y, 220, 36) then ST.cancel_job() end
+  else
+    local done, byp = Vm.fx_state()
+    if done then
+      if button(byp and "Bypass (son d'origine)" or "Bypass", x, y, 220, 36, false, byp) then Vm.toggle_bypass() end
+    elseif button("Analyser et appliquer", x, y, 220, 36, true, false, n == 0) then Vm.start_analysis() end
+  end
+  if button("Guide", x + 230, y, 90, 36) then open_url(dir .. "Vocal level - Guide.html") end
+  if expert() then
+    if button("Retirer", x + 330, y, 90, 36) then
+      local k = Vm.remove_all(ST.takes); UI.stats, UI.why = nil, nil
+      Vm.set_msg(k > 0 and string.format("Traitement retiré de %d item%s.", k, k > 1 and "s" or "") or "Rien à retirer sur la sélection.")
+    end
+    if vocal_path and button("Réglages avancés…", x + w - 180, y, 180, 36) then run(vocal_path) end
+  end
+  if chg and not ST.job then
+    if an > 0 then Vm.apply_all() else Vm.save() end
+  end
+  return y + 50
 end
 
 -- ripple sur les bords relancé à chaque démarrage de REAPER (bloc ajouté au fichier __startup.lua de REAPER)
@@ -355,13 +446,127 @@ local function page_cut(x, y, w)
   y = wrap("Pendant que vous tirez un bord, les voisins se décalent en direct, de la même valeur : bord droit, tout ce qui suit ; bord gauche, tout ce qui précède. Aucun fondu n'est ajouté. Même portée que le ripple de REAPER (la piste, ou toutes les pistes).", x, y + 48, w - 24, COL.muted, 2) + 10
 end
 
+---------------------------------------------------------------- Export : contrôle du niveau dans la page, liste « prêt ? », export
+local LD
+local function loud()
+  if not LD then
+    local ok, mod = pcall(dofile, dir .. "Toolbox_loudness.lua")
+    if ok then LD = mod end
+  end
+  return LD
+end
+
+local function tile(x, y, w, h, label, value, sub, ok)
+  col(COL.panel); gfx.rect(x, y, w, h, 1)
+  col(ok == nil and COL.line or (ok and COL.ok or COL.bad)); gfx.rect(x, y, 4, h, 1)
+  text(label, x + 14, y + 9, COL.muted, 2)
+  text(value, x + 14, y + 28, ok == nil and COL.text or (ok and COL.ok or COL.bad), 3)
+  text(sub, x + 14, y + 56, COL.muted, 2)
+end
+
+-- vérifications avant l'export (rapides, recalculées quand le projet change)
+local ready_cache = { st = -1 }
+local function ready_checks(Lm)
+  local st = reaper.GetProjectStateChangeCount(0)
+  if st ~= ready_cache.st then
+    local solo, voice = false, false
+    for i = 0, reaper.CountTracks(0) - 1 do
+      if reaper.GetMediaTrackInfo_Value(reaper.GetTrack(0, i), "I_SOLO") > 0 then solo = true end
+    end
+    for i = 0, math.min(reaper.CountMediaItems(0), 400) - 1 do
+      local tk = reaper.GetActiveTake(reaper.GetMediaItem(0, i))
+      if tk and reaper.TakeFX_GetCount(tk) > 0 then
+        for f = 0, reaper.TakeFX_GetCount(tk) - 1 do
+          local _, nm = reaper.TakeFX_GetFXName(tk, f, "")
+          if nm:find("Vocal level", 1, true) then voice = true end
+        end
+      end
+      if voice then break end
+    end
+    local _, fn = reaper.EnumProjects(-1)
+    ready_cache = { st = st, solo = solo, voice = voice, saved = fn ~= nil and fn ~= "" }
+  end
+  local R = ready_cache
+  local m = Lm.UI.m
+  local okLevel = m and (function() local a, b = Lm.verdict(m, Lm.NORMS[Lm.S.norm]); return a and b end)()
+  return {
+    { R.saved, "Projet enregistré", "Fichier › Enregistrer le projet" },
+    { not R.solo, "Aucune piste en solo", "une piste en solo exporterait un mix incomplet" },
+    { R.voice, "Voix traitée (page Voix)", "facultatif, mais conseillé" },
+    { okLevel, "Niveau conforme à la norme", m and "voir les pistes ci-dessus" or "cliquez sur « Mesurer »" },
+  }
+end
+
 local function page_export(x, y, w)
-  y = header(x, y, w, "Export", "Avant d'exporter, vérifiez que le niveau respecte la norme de la plateforme : Podcast (−16 LUFS) ou Spotify (−14 LUFS), true peak max −1 dBTP. L'outil explique quoi corriger et peut corriger automatiquement.")
-  local p
-  y, p = action_row(x, y, w, "Contrôle du niveau", "Mesure le mix du master sans exporter, compare à la norme et propose des corrections.", "Vérifier le niveau", true)
-  if p then run(own("loudness")) end
-  y, p = action_row(x, y, w, "Exporter", "Ouvre la fenêtre de rendu de REAPER. Si le niveau a été vérifié, ne cochez pas de normalisation.", "Ouvrir l'export")
-  if p then reaper.Main_OnCommand(40015, 0) end
+  local Lm = loud()
+  if not Lm then y = header(x, y, w, "Export", "Outil introuvable : mettez la boîte à outils à jour (ReaPack › Synchronize packages)."); return y end
+  local S, UI, NORMS = Lm.S, Lm.UI, Lm.NORMS
+  text("Export", x, y, COL.text, 3)
+  text("Mesure le mix du master tel qu'il sera exporté, avant d'exporter.", x, y + 30, COL.muted, 2)
+  y = y + 60
+  local bw = (w - 12) / 2
+  for i, N in ipairs(NORMS) do
+    if button(N.name, x + (i - 1) * (bw + 12), y, bw, 30, false, S.norm == i) and not UI.busy then S.norm = i; Lm.save() end
+  end
+  local N = NORMS[S.norm]
+  y = y + 36
+  text(string.format("Norme : %s LUFS intégrés (± %s LU) · true peak max %s dBTP", Lm.num(N.target, 0), Lm.num(N.tol, 0), Lm.num(N.tp, 0)), x, y, COL.muted, 2)
+  y = y + 26
+  if expert() then
+    local w2, c1 = chip("Tout le projet", x, y, nil, S.scope == "all"); if c1 and not UI.busy then S.scope = "all"; Lm.save() end
+    local _, c2 = chip("Sélection temporelle", x + w2 + 6, y, nil, S.scope == "sel"); if c2 and not UI.busy then S.scope = "sel"; Lm.save() end
+    y = y + 38
+  else S.scope = "all" end
+  if button(UI.busy and "Mesure…" or (UI.m and "Remesurer" or "Mesurer"), x, y, 200, 36, true) and not UI.busy then Lm.do_measure() end
+  local g, en = Lm.lim_gain()
+  if g then
+    text(string.format("Limiteur sur le master : gain %s dB%s", Lm.sgn(g), en and "" or " (désactivé)"), x + 214, y + 2, COL.muted, 2)
+    if button("Retirer le limiteur", x + 214, y + 20, 160, 22) and not UI.busy then Lm.remove_lim() end
+  end
+  y = y + 50
+  if UI.msg ~= "" then y = wrap(UI.msg, x, y, w, COL.accent, 2) + 6 end
+  local m = UI.m
+  if m then
+    local okL, okT = Lm.verdict(m, N)
+    local tw = (w - 24) / 3
+    tile(x, y, tw, 76, "Loudness intégrée", Lm.num(m.lufs) .. " LUFS", string.format("visé : %s à %s", Lm.num(N.target - N.tol, 0), Lm.num(N.target + N.tol, 0)), okL)
+    tile(x + tw + 12, y, tw, 76, m.tp_src == "sample" and "Crête (échantillon)" or "True peak", Lm.sgn(m.tp) .. (m.tp_src == "sample" and " dBFS" or " dBTP"),
+      m.tp_src == "sample" and ("max : " .. Lm.num(N.tp - 1, 0) .. " dBFS") or ("max : " .. Lm.num(N.tp, 0) .. " dBTP"), okT)
+    tile(x + 2 * (tw + 12), y, tw, 76, "Écart de volume (LRA)", m.lra and (Lm.num(m.lra) .. " LU") or "—", "bas = voix régulière", m.lra and (m.lra <= Lm.LRA_HIGH) or nil)
+    y = y + 90
+    for _, s in ipairs(Lm.suggestions(m, N)) do
+      col(COL.accent); gfx.rect(x + 2, y + 6, 5, 5, 1)
+      y = wrap(s, x + 16, y, w - 16, COL.text, 2) + 4
+    end
+    if not (okL and okT) then
+      y = y + 4
+      if button("Corriger automatiquement", x, y, 240, 34, true) and not UI.busy then Lm.do_correct() end
+      y = y + 42
+    end
+  end
+  -- prêt à exporter ?
+  y = y + 6
+  col(COL.line); gfx.line(x, y, x + w, y)
+  text("Prêt à exporter ?", x, y + 12, COL.text, 5)
+  y = y + 40
+  local allok = true
+  for _, c in ipairs(ready_checks(Lm)) do
+    if not c[1] and c[2] == "Voix traitée (page Voix)" then col(COL.accent); gfx.circle(x + 6, y + 8, 5, 1, 1) else status_dot(x + 6, y + 8, c[1]) end
+    text(c[2], x + 20, y, c[1] and COL.text or COL.muted, 2)
+    if not c[1] then text(c[3], x + 260, y, COL.muted, 2); if c[2] ~= "Voix traitée (page Voix)" then allok = false end end
+    y = y + 22
+  end
+  y = y + 8
+  if button("Exporter pour " .. (S.norm == 2 and "Spotify" or "les plateformes de podcast"), x, y, 300, 36, allok, false) then
+    -- réglages de rendu prêts : tout le projet, 44,1 kHz, nom du fichier ; le format (MP3, WAV…) reste au choix
+    reaper.GetSetProjectInfo(0, "RENDER_SETTINGS", 0, true)
+    reaper.GetSetProjectInfo(0, "RENDER_BOUNDSFLAG", 1, true)
+    reaper.GetSetProjectInfo(0, "RENDER_SRATE", 44100, true)
+    reaper.GetSetProjectInfo_String(0, "RENDER_PATTERN", "$project - " .. (S.norm == 2 and "Spotify" or "Podcast"), true)
+    reaper.Main_OnCommand(40015, 0)
+    msg = "Fenêtre d'export ouverte : choisissez le format (MP3 192 kbps ou WAV) et ne cochez pas de normalisation — le niveau est déjà réglé."
+  end
+  return y + 50
 end
 
 ---------------------------------------------------------------- Doublage (ADR)
@@ -671,7 +876,19 @@ local function draw()
   end
   local cx, cw = sw + 32, math.max(300, w - sw - 64)
   if help_open then help_overlay(cx, 26, cw, h - 40)
-  else DRAW[page](cx, 26, cw) end
+  else
+    if (gfx.mouse_wheel or 0) ~= 0 then SCROLL = math.max(0, (SCROLL or 0) - gfx.mouse_wheel / 4); gfx.mouse_wheel = 0 end
+    if page ~= LAST_PAGE then SCROLL, LAST_PAGE = 0, page end
+    local bottom = DRAW[page](cx, 26 - (SCROLL or 0), cw)
+    if type(bottom) == "number" then
+      local over = bottom + (SCROLL or 0) - (h - 10)
+      if over <= 0 then SCROLL = 0 elseif SCROLL > over then SCROLL = over end
+      if over > 0 then                                         -- indicateur de défilement
+        col(COL.line); gfx.rect(w - 6, 0, 3, h, 1)
+        col(COL.muted); gfx.rect(w - 6, (SCROLL / (over + h)) * h, 3, h * h / (over + h), 1)
+      end
+    else SCROLL = 0 end
+  end
   if button(help_open and "×" or "?", w - 46, 18, 30, 30, false, help_open) then help_open = not help_open end
   -- message (résultat d'un outil, avertissement) : en bas, refermable
   if msg ~= "" then
@@ -701,6 +918,12 @@ local function loop()
   local ch = gfx.getchar()
   U.frame()
   reaper.SetExtState(SEC, "hub_alive", tostring(reaper.time_precise()), false)
+  if V then
+    if V.ST.job then V.ST.job() else V.ST.takes = V.selected_takes() end
+  end
+  if LD and LD.UI.pending then                                 -- mesure du niveau : lancée après l'affichage de « Mesure… »
+    if LD.UI.drawn then local f = LD.UI.pending; LD.UI.pending = nil; LD.UI.drawn = false; f() else LD.UI.drawn = true end
+  end
   local tid = reaper.GetExtState(SEC, "toast_id")
   if tid ~= "" and tid ~= LAST_TOAST then LAST_TOAST = tid; msg = reaper.GetExtState(SEC, "toast") end
   if ch < 0 or ch == 27 then return end

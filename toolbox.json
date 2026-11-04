@@ -2,7 +2,7 @@
   "name": "Podcast & ADR Toolbox",
   "category": "Toolbox",
   "package": "Podcast & ADR Toolbox",
-  "version": "0.9.6",
+  "version": "0.9.7",
   "author": "Nicolas Debois",
   "description": "Boîte à outils gratuite pour REAPER : dérushage de podcast par le texte (Whisper en local), ripple sur les bords des items, traitement de la voix (Vocal level & de-esser), contrôle du niveau avant l'export, et doublage (ADR) avec bande rythmo sur tablette. Une seule action à retenir : « Podcast & ADR Toolbox ».",
   "files": [
@@ -83,12 +83,19 @@
     },
     {
       "path": "Scripts/Toolbox_ui.lua"
+    },
+    {
+      "path": "Scripts/Toolbox_vocal.lua"
+    },
+    {
+      "path": "Scripts/Toolbox_loudness.lua"
     }
   ],
   "changelog": [
-    "Mode Simple / Expert (en bas à gauche) : en Simple, seul l'essentiel est affiché, y compris dans Vocal level et le Contrôle du niveau",
-    "Bouton « ? » sur chaque page : l'aide de la page",
-    "Les résultats des outils (import, transcription, calibrage…) s'affichent dans la fenêtre principale au lieu de boîtes de dialogue",
-    "Textes un peu plus grands dans la fenêtre principale"
+    "Fenêtre unique : Vocal level & de-esser est intégré à la page Voix, le contrôle du niveau à la page Export",
+    "Voix : sous chaque traitement, « ce qui a été fait » en une phrase (ex. « 11 sifflantes adoucies… »), pour comprendre et pas seulement appliquer",
+    "Export : liste « Prêt à exporter ? » (projet enregistré, pas de solo, voix traitée, niveau conforme) et bouton « Exporter pour Spotify / les plateformes de podcast »",
+    "Pages longues : défilement à la molette",
+    "La fenêtre complète de Vocal level reste accessible en mode Expert (« Réglages avancés… »)"
   ]
 }

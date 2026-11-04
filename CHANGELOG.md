@@ -1,5 +1,12 @@
 # Nouveautés de Podcast & ADR Toolbox
 
+## 0.9.7 — 04/11/2026
+- Fenêtre unique : Vocal level & de-esser est intégré à la page Voix, le contrôle du niveau à la page Export
+- Voix : sous chaque traitement, « ce qui a été fait » en une phrase (ex. « 11 sifflantes adoucies… »), pour comprendre et pas seulement appliquer
+- Export : liste « Prêt à exporter ? » (projet enregistré, pas de solo, voix traitée, niveau conforme) et bouton « Exporter pour Spotify / les plateformes de podcast »
+- Pages longues : défilement à la molette
+- La fenêtre complète de Vocal level reste accessible en mode Expert (« Réglages avancés… »)
+
 ## 0.9.6 — 04/11/2026
 - Mode Simple / Expert (en bas à gauche) : en Simple, seul l'essentiel est affiché, y compris dans Vocal level et le Contrôle du niveau
 - Bouton « ? » sur chaque page : l'aide de la page
