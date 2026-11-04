@@ -2,7 +2,7 @@
 -- Organisation dans REAPER (tout reste éditable à la main) :
 --   • piste « @Nom »        : les répliques du personnage = items vides, texte dans les notes de l'item ;
 --   • piste « Prises - Nom » : juste en dessous, l'enregistrement du comédien (une prise par passage) ;
---   • piste « Bips »         : trois bips avant chaque réplique, audibles seulement pendant l'enregistrement.
+--   • piste « Bips »         : un double bip avant la réplique en cours, audible seulement pendant l'enregistrement.
 -- Signes de détection dans le texte : (r) respiration · (b) bouche fermée · (rire) · (s) soupir.
 local P = dofile((debug.getinfo(1, "S").source:match("^@(.*[/\\])") or "") .. "Toolbox_lib.lua")
 local A = {}
@@ -179,34 +179,26 @@ function A.bip_file()
   return path
 end
 
--- signature des débuts de réplique (pour ne reconstruire les bips que si elles changent)
-function A.bip_signature(lines)
-  local t = {}
-  for _, l in ipairs(lines) do t[#t + 1] = string.format("%.3f", l.pos) end
-  return table.concat(t, ",")
-end
+-- les deux bips sont placés à -1 s et -0,5 s du début : « bip, bip, top » — on parle au troisième temps
+A.BIP_TIMES = { 1.0, 0.5 }
 
--- reconstruit la piste « Bips » : trois bips, à -3, -2 et -1 s de chaque réplique
-function A.build_bips(lines)
-  local file = A.bip_file(); if not file then return end
+-- piste « Bips » : un double bip, seulement avant la réplique en cours d'enregistrement
+function A.build_bips(line)
   local tr = A.find_track(A.BIPS)
   if not tr then tr = insert_track(reaper.CountTracks(0), A.BIPS, reaper.ColorToNative(90, 90, 96) | 0x1000000) end
   for j = reaper.CountTrackMediaItems(tr) - 1, 0, -1 do reaper.DeleteTrackMediaItem(tr, reaper.GetTrackMediaItem(tr, j)) end
+  if not line then return tr end
+  local file = A.bip_file(); if not file then return tr end
   local src = reaper.PCM_Source_CreateFromFile(file)
-  local seen = {}
-  for _, l in ipairs(lines) do
-    for k = 3, 1, -1 do
-      local t = l.pos - k
-      local key = string.format("%.2f", t)
-      if t >= 0 and not seen[key] then
-        seen[key] = true
-        local it = reaper.AddMediaItemToTrack(tr)
-        reaper.SetMediaItemInfo_Value(it, "D_POSITION", t)
-        reaper.SetMediaItemInfo_Value(it, "D_LENGTH", 0.15)
-        reaper.SetMediaItemInfo_Value(it, "C_LOCK", 1)
-        local tk = reaper.AddTakeToMediaItem(it)
-        reaper.SetMediaItemTake_Source(tk, src)
-      end
+  for _, k in ipairs(A.BIP_TIMES) do
+    local t = line.pos - k
+    if t >= 0 then
+      local it = reaper.AddMediaItemToTrack(tr)
+      reaper.SetMediaItemInfo_Value(it, "D_POSITION", t)
+      reaper.SetMediaItemInfo_Value(it, "D_LENGTH", 0.15)
+      reaper.SetMediaItemInfo_Value(it, "C_LOCK", 1)
+      local tk = reaper.AddTakeToMediaItem(it)
+      reaper.SetMediaItemTake_Source(tk, src)
     end
   end
   return tr
@@ -249,6 +241,7 @@ function A.cue(line, preroll)
     end
   end
   A.set("cur", A.guid(line.item))
+  A.build_bips(line)
   reaper.SetExtState(A.SEC, "stop_at", string.format("%.3f", b + 0.5), false)
   reaper.SetExtState(A.SEC, "loop_from", string.format("%.3f", math.max(0, line.pos - preroll)), false)
 end

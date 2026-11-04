@@ -32,7 +32,7 @@
 </div>
 <div id="help">
   <b>Bande rythmo</b> — le texte défile vers la barre ; on dit chaque syllabe quand elle passe sous la barre.<br>
-  <span class="k">Tirets avant la réplique</span>les 3 bips (3, 2, 1) — on parle au 4<sup>e</sup> temps.<br>
+  <span class="k">Deux traits</span>le double bip : « bip, bip, top » — on parle au 3<sup>e</sup> temps.<br>
   <span class="k">RESP</span>respiration · <span class="k">BOUCHE</span>bouche fermée (labiale)<br>
   <span class="k">RIRE</span>rire · <span class="k">SOUPIR</span>soupir<br>
   <span class="k">− / +</span>vitesse de défilement (aussi ↓ / ↑)<br>
@@ -250,11 +250,11 @@ function draw(t){
   for (const c of cues) if (t >= c.pos && t < c.pos + c.len && !dim(c.row)) {
     ctx.globalAlpha = 0.13; ctx.fillStyle = c.ink; ctx.fillRect(0, HEAD + c.row*lh, W, lh); ctx.globalAlpha = 1;
   }
-  // bips : 3 traits avant chaque réplique (du personnage enregistré, ou de tous)
-  for (const c of cues){
-    if (dim(c.row) || c.pos + 0 < tMin || c.pos - 3 > tMax) continue;
+  // double bip : 2 traits avant la réplique en cours seulement
+  const cur = curpos == null ? null : cues.find(c => Math.abs(c.pos - curpos) < 0.002);
+  for (const c of cur ? [cur] : []){
     const y = HEAD + c.row*lh;
-    for (let k = 3; k >= 1; k--) {
+    for (const k of [1, 0.5]) {
       const x = barX + (c.pos - k - t) * speed;
       ctx.fillStyle = c.ink; ctx.globalAlpha = x < barX ? 0.25 : 0.9;
       ctx.fillRect(x - 2, y + lh*0.80, 4, lh*0.16);
@@ -268,11 +268,11 @@ function draw(t){
     ctx.save(); ctx.beginPath(); ctx.rect(0, y, barX, lh); ctx.clip(); drawCue(c, x0, w, y, lh, fs, a * 0.3); ctx.restore();
     ctx.save(); ctx.beginPath(); ctx.rect(barX, y, W - barX, lh); ctx.clip(); drawCue(c, x0, w, y, lh, fs, a); ctx.restore();
   }
-  // décompte 3-2-1 avant la prochaine réplique du personnage
-  if (playing()) {
-    const next = cues.find(c => !dim(c.row) && c.pos > t && c.pos - t <= 3);
+  // décompte 2-1, au rythme du double bip, avant la réplique en cours
+  if (playing() && cur) {
+    const next = cur.pos > t && cur.pos - t <= 1 ? cur : null;
     if (next) {
-      const k = Math.ceil(next.pos - t);
+      const k = next.pos - t > 0.5 ? 2 : 1;
       const y = HEAD + next.row*lh;
       ctx.fillStyle = next.ink; ctx.globalAlpha = 0.9;
       ctx.font = `800 ${Math.min(lh*0.7, 120)|0}px system-ui, sans-serif`;

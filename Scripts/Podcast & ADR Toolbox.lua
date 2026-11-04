@@ -478,7 +478,7 @@ local function page_rec(x, y, w)
   cx = cx + toggle("Boucle", "loop", "0", cx) + 6
   cx = cx + toggle("Suivante après la prise", "auto_next", "1", cx) + 18
   y = y + 38; cx = x
-  text("Pré-roll (bips compris)", cx, y + 7, COL.muted, 2); cx = cx + 160
+  text("Pré-roll", cx, y + 7, COL.muted, 2); cx = cx + 70
   local pr = A.get("preroll", "3")
   for _, v in ipairs({ "3", "4", "5", "6" }) do
     local w2, c2 = chip(v .. " s", cx, y, nil, pr == v); if c2 then A.set("preroll", v) end

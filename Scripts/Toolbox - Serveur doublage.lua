@@ -1,6 +1,6 @@
 -- Toolbox - Serveur doublage.lua — à laisser tourner pendant la séance (lancé par la page Enregistrement).
 --  • envoie les répliques à la bande rythmo (page doublage.html, sur cet ordinateur ou sur une tablette) ;
---  • tient la piste « Bips » à jour (3 bips avant chaque réplique) et ne la rend audible qu'en enregistrement ;
+--  • garde le double bip calé sur la réplique en cours (même si on la déplace) et ne le rend audible qu'en enregistrement ;
 --  • arrête la lecture ou l'enregistrement à la fin de la réplique, ou reboucle si « Boucle » est actif.
 local dir = ({ reaper.get_action_context() })[2]:match("^(.*[/\\])")
 local A = dofile(dir .. "Toolbox_adr.lua")
@@ -36,11 +36,12 @@ local function publish()
   reaper.SetExtState(SEC, "cues", cues, false)
   reaper.SetExtState(SEC, "lanes", lanes, false)
   reaper.SetExtState(SEC, "version", session .. "-" .. counter, false)
-  local sig = A.bip_signature(lines)
+  local i = A.current(lines)
+  local sig = i and string.format("%.3f", lines[i].pos) or ""
   if sig ~= last_sig then
     last_sig = sig
     reaper.PreventUIRefresh(1)
-    A.build_bips(lines)
+    A.build_bips(i and lines[i] or nil)
     reaper.PreventUIRefresh(-1)
     reaper.UpdateArrange()
   end

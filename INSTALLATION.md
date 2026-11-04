@@ -100,7 +100,7 @@ La bande rythmo s'affiche dans un navigateur web. L'image, elle, reste dans la f
 
 Les boutons en haut à droite de la bande règlent la vitesse de défilement (**− / +**) et le calage sur l'image (**◂ / ▸ 10 ms**) ; ces réglages sont mémorisés sur la tablette.
 
-**Lire la bande** : le texte défile vers la barre verticale ; on dit chaque syllabe quand elle passe sous la barre. Les trois petits traits avant une réplique correspondent aux trois bips : on parle au quatrième temps. Les signes **RESP** (respiration), **BOUCHE** (bouche fermée), **RIRE** et **SOUPIR** viennent des codes `(r)`, `(b)`, `(rire)` et `(s)` tapés dans le texte des répliques.
+**Lire la bande** : le texte défile vers la barre verticale ; on dit chaque syllabe quand elle passe sous la barre. Les deux petits traits avant la réplique à enregistrer correspondent au double bip : « bip, bip, top », on parle au troisième temps. Les signes **RESP** (respiration), **BOUCHE** (bouche fermée), **RIRE** et **SOUPIR** viennent des codes `(r)`, `(b)`, `(rire)` et `(s)` tapés dans le texte des répliques.
 
 ---
 
