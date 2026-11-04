@@ -1,5 +1,5 @@
-# Compile whisper-cli pour Mac (puces Apple et Intel), sans dépendance, et le publie dans la version « whisper-macos »
-# du dépôt : l'installation de la boîte à outils le télécharge, plus besoin de Homebrew.
+# Compile whisper-cli pour Mac (binaire universel : puces Apple et Intel), sans dépendance, et le publie dans la
+# version « whisper-macos » du dépôt : l'installation de la boîte à outils le télécharge, plus besoin de Homebrew.
 # À relancer à la main (onglet Actions › « Whisper pour Mac » › Run workflow) pour changer de version de whisper.cpp.
 name: Whisper pour Mac
 on:
@@ -12,47 +12,26 @@ permissions:
   contents: write
 jobs:
   build:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - runner: macos-latest
-            arch: arm64
-          - runner: macos-latest        # compilé pour Intel depuis un Mac Apple (compilation croisée)
-            arch: x86_64
-    runs-on: ${{ matrix.runner }}
+    runs-on: macos-latest
     steps:
       - name: Sources de whisper.cpp
         run: git clone --depth 1 --branch "${{ github.event.inputs.version || 'v1.9.5' }}" https://github.com/ggml-org/whisper.cpp.git src
-      - name: Compilation (statique, Metal intégré)
+      - name: Compilation (statique, Metal intégré, puces Apple + Intel)
         run: |
           cmake -S src -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DWHISPER_BUILD_TESTS=OFF \
-                -DGGML_METAL_EMBED_LIBRARY=ON -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0 -DCMAKE_OSX_ARCHITECTURES=${{ matrix.arch }} \
-                -DGGML_NATIVE=OFF
+                -DGGML_METAL_EMBED_LIBRARY=ON -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0 -DGGML_NATIVE=OFF \
+                "-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64"
           cmake --build build --config Release -j 4 --target whisper-cli
-          cp build/bin/whisper-cli whisper-cli-macos-${{ matrix.arch }}
-          otool -L whisper-cli-macos-${{ matrix.arch }}
-          file whisper-cli-macos-${{ matrix.arch }}
-          if [ "${{ matrix.arch }}" = "arm64" ]; then ./whisper-cli-macos-arm64 --help 2>&1 | head -5; fi
-      - uses: actions/upload-artifact@v4
-        with:
-          name: whisper-cli-macos-${{ matrix.arch }}
-          path: whisper-cli-macos-${{ matrix.arch }}
-  publish:
-    needs: build
-    if: always()
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          path: out
-          merge-multiple: true
+          file build/bin/whisper-cli
+          otool -L build/bin/whisper-cli
+          build/bin/whisper-cli --help 2>&1 | head -3
+          cp build/bin/whisper-cli whisper-cli-macos-arm64
+          cp build/bin/whisper-cli whisper-cli-macos-x86_64
       - name: Publier dans la version « whisper-macos »
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          ls -la out
           gh release view whisper-macos -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
             gh release create whisper-macos -R "$GITHUB_REPOSITORY" --title "Whisper pour Mac" \
               --notes "whisper-cli compilé pour Mac (puces Apple et Intel), téléchargé automatiquement par l'installation de Podcast & ADR Toolbox."
-          gh release upload whisper-macos out/* -R "$GITHUB_REPOSITORY" --clobber
+          gh release upload whisper-macos whisper-cli-macos-arm64 whisper-cli-macos-x86_64 -R "$GITHUB_REPOSITORY" --clobber
