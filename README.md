@@ -1,41 +1,25 @@
-# PodSuite pour REAPER
+# Podcast & ADR Toolbox pour REAPER
 
-Transcription et dérushage de podcast, directement dans REAPER. Gratuit, et tout se passe sur votre ordinateur : l'audio ne part nulle part.
+Boîte à outils gratuite pour REAPER (Mac et Windows). Tout se passe sur votre ordinateur : l'audio ne part nulle part.
 
-- **Transcription mot par mot** avec Whisper, qui reconnaît qui parle (une piste par intervenant).
-- **Détection du clicker** : un clic pendant l'enregistrement signale une prise ratée, et PodSuite propose la coupe.
-- **Montage par le texte** : barrez des mots dans la page de dérushage, REAPER coupe le son au même endroit, dans le silence le plus proche.
-
-Fonctionne sur Mac et Windows.
+- **PodSuite** : transcription mot par mot avec Whisper, détection du clicker, montage par le texte.
+- **Vocal level & de-esser** : niveau régulier, sifflantes, plosives, voix trop proche, équilibre tonal.
+- **Montage** : ripple sur les bords des items.
+- **Export** : contrôle du niveau (LUFS, true peak) avec correction automatique.
+- **Doublage (ADR / bande rythmo)** : à venir.
 
 ## Installation
-
-### 1. Installer ReaPack (une seule fois)
-ReaPack est le gestionnaire d'extensions de REAPER : https://reapack.com
-Téléchargez le fichier pour votre système, placez-le dans le dossier `UserPlugins` de REAPER
-(*Options › Show REAPER resource path*), puis redémarrez REAPER.
-
-### 2. Ajouter le dépôt PodSuite
-*Extensions › ReaPack › Import repositories…*, collez cette adresse, puis OK :
-
-```
-https://github.com/nicolasdebois-pixel/PodSuite/raw/main/index.xml
-```
-
-### 3. Installer PodSuite
-*Extensions › ReaPack › Browse packages…*, cherchez **PodSuite**, clic droit › *Install*, puis *Apply*.
-
-### 4. Lancer l'assistant
-*Actions › Show action list*, cherchez **PodSuite - Installer**, puis *Run*.
-L'assistant installe Whisper, télécharge le modèle de transcription de votre choix, règle PodSuite
-et vous guide pour activer l'interface web de REAPER. Il se termine par un test.
-
-Sur Mac, l'assistant utilise Homebrew. S'il n'est pas installé, l'assistant donne la commande à coller dans le Terminal.
-
-Les mises à jour arrivent ensuite toutes seules par ReaPack (*Extensions › ReaPack › Synchronize packages*).
+La procédure détaillée, pas à pas, est dans [INSTALLATION.md](INSTALLATION.md). En bref :
+1. Installez ReaPack (https://reapack.com) et redémarrez REAPER.
+2. *Extensions › ReaPack › Import repositories…*, collez :
+   ```
+   https://github.com/nicolasdebois-pixel/PodSuite/raw/main/index.xml
+   ```
+3. Installez le paquet **Podcast & ADR Toolbox**.
+4. Lancez l'action **Podcast & ADR Toolbox**, puis *Accueil › Installer / réparer* pour la transcription.
 
 ## Utilisation
-Une seule action à retenir : **PodSuite**. Elle ouvre une fenêtre avec une page par étape
+Une seule action à retenir : **Podcast & ADR Toolbox**. Elle ouvre une fenêtre avec une page par étape
 (Dérushage, Voix, Montage, Export) d'où l'on lance tous les outils. Mettez-la dans une barre d'outils.
 
 
@@ -68,8 +52,8 @@ Conseil : si le limiteur doit réduire les crêtes de plus de 6 dB, régularisez
 (Vocal level & de-esser) : le résultat sonnera plus naturel.
 
 ## Pour le mainteneur : publier une version
-1. Modifiez les fichiers dans `Scripts/` ou `www/`.
-2. Dans `podsuite.json`, augmentez `version` et décrivez les changements dans `changelog`.
+1. Modifiez les fichiers dans `Scripts/`, `Effects/` ou `www/`.
+2. Dans `toolbox.json`, augmentez `version` et décrivez les changements dans `changelog`.
 3. Envoyez sur la branche `main`. GitHub met à jour `index.xml` tout seul (onglet *Actions*),
    et les utilisateurs reçoivent la mise à jour par ReaPack.
 

@@ -1,11 +1,10 @@
--- PodSuite.lua — la fenêtre principale : toutes les fonctions de PodSuite, page par page.
+-- Podcast & ADR Toolbox.lua — la fenêtre principale : tous les outils, page par page.
 -- C'est la seule action à retenir (ou à mettre dans une barre d'outils) : elle lance les autres outils.
 local dir = ({ reaper.get_action_context() })[2]:match("^(.*[/\\])")
 local P = dofile(dir .. "PodSuite_lib.lua")
 
-local TITLE = "PodSuite"
+local TITLE = "Podcast & ADR Toolbox"
 local SEC = P.SECTION
-local VOCAL_REPO = "https://github.com/nicolasdebois-pixel/vocal-level-de-esser/raw/main/index.xml"
 
 ---------------------------------------------------------------- Lancer les autres outils
 local SCRIPTS = {
@@ -29,6 +28,7 @@ local function own(k) return dir .. SCRIPTS[k] end
 -- Vocal level & de-esser (autre dépôt) : on cherche le script dans le dossier Scripts de REAPER
 local vocal_path
 local function find_vocal()
+  if P.exists(dir .. "Vocal level & de-esser.lua") then return dir .. "Vocal level & de-esser.lua" end   -- livré dans la boîte à outils
   local saved = reaper.GetExtState(SEC, "vocal_path")
   if saved ~= "" and P.exists(saved) then return saved end
   local root = reaper.GetResourcePath() .. P.SEP .. "Scripts"
@@ -155,14 +155,14 @@ local function action_row(x, y, w, title, desc, label, primary, disabled, extra)
 end
 
 local function page_home(x, y, w)
-  y = header(x, y, w, "Bienvenue dans PodSuite", "Tout ce qu'il faut pour monter un podcast dans REAPER, dans l'ordre : on dérushe à partir du texte, on soigne la voix, on peaufine le montage, puis on vérifie le niveau avant d'exporter.")
+  y = header(x, y, w, "Bienvenue", "Tout ce qu'il faut pour monter un podcast dans REAPER, dans l'ordre : on dérushe à partir du texte, on soigne la voix, on peaufine le montage, puis on vérifie le niveau avant d'exporter.")
   -- état de l'installation
   local whisper_ok = P.settings_ok()
   local web_ok = P.web_port() ~= nil
   local vocal_ok = vocal_path ~= nil
   local rows = {
     { whisper_ok and web_ok, "Transcription (Whisper) et interface web", whisper_ok and web_ok and "prêtes" or "à installer une fois" },
-    { vocal_ok, "Vocal level & de-esser", vocal_ok and "installé" or "pas installé (voir page Voix)" },
+    { vocal_ok, "Vocal level & de-esser", vocal_ok and "installé" or "introuvable (synchronisez ReaPack)" },
   }
   col(COL.panel); gfx.rect(x, y, w, 26 + #rows * 26, 1)
   text("INSTALLATION", x + 14, y + 8, COL.muted, 4)
@@ -194,7 +194,7 @@ local function page_home(x, y, w)
     if clicked and over then go(c[1]) end
   end
   y = y + 140
-  wrap("Astuce : mettez l'action « PodSuite » dans une barre d'outils (clic droit sur la barre › Personnaliser) ; c'est la seule à retenir. Le bouton « Ancrer » en bas à gauche place cette fenêtre dans REAPER.", x, y, w, COL.muted, 2)
+  wrap("Astuce : mettez l'action « Podcast & ADR Toolbox » dans une barre d'outils (clic droit sur la barre › Personnaliser) ; c'est la seule à retenir. Le bouton « Ancrer » en bas à gauche place cette fenêtre dans REAPER.", x, y, w, COL.muted, 2)
 end
 
 local function page_edit(x, y, w)
@@ -229,12 +229,10 @@ local function page_voice(x, y, w)
     y, p = action_row(x, y, w, "Vocal level & de-esser", "Sélectionnez les items de voix (après le dérushage), puis ouvrez l'outil.", "Ouvrir", true)
     if p then run(vocal_path) end
   else
-    col(COL.panel); gfx.rect(x, y, w, 132, 1)
-    text("Pas encore installé", x + 16, y + 14, COL.text, 5)
-    local yy = wrap("Dans REAPER : Extensions › ReaPack › Import repositories…, collez l'adresse ci-dessous, puis Extensions › ReaPack › Synchronize packages. Revenez ensuite sur cette page.", x + 16, y + 40, w - 32, COL.muted, 2)
-    text(VOCAL_REPO, x + 16, yy + 6, COL.accent, 2)
-    if reaper.CF_SetClipboard and button("Copier l'adresse", x + w - 176, y + 12, 160, 26) then reaper.CF_SetClipboard(VOCAL_REPO); msg = "Adresse copiée." end
-    if button("Vérifier à nouveau", x + w - 176, y + 96, 160, 26) then reaper.DeleteExtState(SEC, "vocal_path", true); vocal_path = find_vocal(); msg = vocal_path and "Trouvé !" or "Toujours introuvable." end
+    col(COL.panel); gfx.rect(x, y, w, 96, 1)
+    text("Outil introuvable", x + 16, y + 14, COL.text, 5)
+    wrap("Mettez la boîte à outils à jour : Extensions › ReaPack › Synchronize packages.", x + 16, y + 40, w - 220, COL.muted, 2)
+    if button("Vérifier à nouveau", x + w - 176, y + 56, 160, 26) then reaper.DeleteExtState(SEC, "vocal_path", true); vocal_path = find_vocal(); msg = vocal_path and "Trouvé !" or "Toujours introuvable." end
   end
 end
 
@@ -288,8 +286,9 @@ local function draw()
   col(COL.bg); gfx.rect(0, 0, w, h, 1)
   local sw = 190
   col(COL.side); gfx.rect(0, 0, sw, h, 1)
-  text("PodSuite", 22, 20, COL.text, 3)
-  local y = 70
+  text("Podcast &", 22, 18, COL.text, 3)
+  text("ADR Toolbox", 22, 42, COL.text, 3)
+  local y = 84
   for _, pg in ipairs(PAGES) do
     local act = page == pg.id
     local over = hit(0, y, sw, 38)

@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vocal level – Guide d'utilisation</title>
+<style>
+:root {
+  --bg: #f6f5f2; --card: #ffffff; --text: #1d1d1f; --muted: #5f6368; --line: #e3e1dc;
+  --accent: #e8892b; --accent-soft: #fbead8; --ok: #2f8f5b; --code: #f0eee9;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #18191c; --card: #222327; --text: #ececec; --muted: #a2a5ab; --line: #34363b;
+    --accent: #f79a38; --accent-soft: #3a2b1c; --ok: #4cc884; --code: #2b2c31; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+main { max-width: 860px; margin: 0 auto; padding: 40px 20px 64px; }
+h1 { font-size: 30px; line-height: 1.2; margin: 0 0 6px; }
+h2 { font-size: 21px; margin: 44px 0 14px; }
+h3 { font-size: 17px; margin: 0 0 6px; }
+p { margin: 0 0 12px; }
+.lead { color: var(--muted); font-size: 17px; margin-bottom: 28px; }
+.steps { counter-reset: s; list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+.steps li { counter-increment: s; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px 12px 56px; position: relative; }
+.steps li::before { content: counter(s); position: absolute; left: 14px; top: 11px; width: 28px; height: 28px; border-radius: 50%;
+  background: var(--accent); color: #1b1006; font-weight: 700; display: grid; place-items: center; font-size: 15px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; margin-bottom: 14px; }
+.card .what { color: var(--muted); font-size: 15px; margin-bottom: 10px; }
+.tag { display: inline-block; font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+  background: var(--accent-soft); color: var(--accent); border-radius: 6px; padding: 2px 8px; margin-bottom: 8px; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 10px; }
+th, td { text-align: left; padding: 6px 8px; border-top: 1px solid var(--line); vertical-align: top; }
+th { color: var(--muted); font-weight: 600; }
+.btn { display: inline-block; font-weight: 700; font-size: 14px; border: 1px solid var(--line); background: var(--code);
+  border-radius: 6px; padding: 1px 8px; white-space: nowrap; }
+.btn.on { background: var(--accent); color: #1b1006; border-color: var(--accent); }
+kbd { font: 13px/1 ui-monospace, Menlo, Consolas, monospace; background: var(--code); border: 1px solid var(--line);
+  border-bottom-width: 2px; border-radius: 5px; padding: 3px 6px; }
+.tip { border-left: 4px solid var(--ok); background: var(--card); padding: 12px 16px; border-radius: 0 10px 10px 0; margin: 14px 0; }
+.warn { border-left-color: var(--accent); }
+ul { padding-left: 22px; margin: 0 0 12px; }
+li { margin-bottom: 4px; }
+svg { display: block; width: 100%; height: auto; margin: 6px 0 4px; }
+.cap { font-size: 13px; color: var(--muted); }
+footer { margin-top: 48px; color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<main>
+
+<h1>Vocal level &amp; de-esser</h1>
+<p class="lead">Un outil pour rendre une voix (parlée ou chantée) plus propre et plus régulière, sans devoir être ingénieur du son.
+Il écoute tout l'item à l'avance, puis dessine des courbes d'automation sur l'item. Rien n'est figé : vous pouvez toujours changer d'avis.</p>
+
+<h2>En quatre étapes</h2>
+<ol class="steps">
+  <li><strong>Sélectionnez</strong> un ou plusieurs items de voix dans REAPER (après le montage, sur des items qui ne bougeront plus).</li>
+  <li>Lancez l'action <strong>Vocal level &amp; de-esser</strong>, choisissez <span class="btn on">Parole</span> ou <span class="btn">Chant</span>.</li>
+  <li>Cliquez sur <span class="btn on">Analyser et appliquer</span>. L'analyse prend quelques secondes.</li>
+  <li><strong>Écoutez.</strong> Un traitement en fait trop ? Passez-le en <span class="btn">Léger</span>. Pas assez ? <span class="btn">Fort</span>.
+    Pas utile ? Décochez-le. Le résultat se met à jour tout de suite.</li>
+</ol>
+
+<h2>Les cinq traitements</h2>
+
+<div class="card">
+  <span class="tag">Niveau régulier</span>
+  <h3>Remonte les passages trop faibles, baisse les trop forts</h3>
+  <p class="what">Quand on parle, on ne garde jamais le même volume : fins de phrases qui tombent, mot crié, tête qui s'éloigne du micro…</p>
+  <p>L'outil inscrit une <strong>automation de volume</strong> sur l'item (la courbe « Rider »). Quand la courbe monte, le son est remonté ;
+    quand elle descend, il est baissé. Il travaille phrase par phrase, en douceur, comme le ferait un technicien la main sur le fader.</p>
+  <svg viewBox="0 0 600 90" role="img" aria-label="Courbe de niveau qui monte et descend doucement autour d'une ligne centrale">
+    <rect x="0" y="0" width="600" height="90" rx="8" fill="var(--code)"/>
+    <line x1="10" y1="45" x2="590" y2="45" stroke="var(--line)" stroke-dasharray="4 4"/>
+    <path d="M10 45 C60 45 70 30 120 30 S190 30 220 46 S290 62 330 60 S400 50 430 38 S520 40 590 45" fill="none" stroke="var(--accent)" stroke-width="3"/>
+    <text x="16" y="20" font-size="12" fill="var(--muted)">plus fort</text><text x="16" y="82" font-size="12" fill="var(--muted)">moins fort</text>
+  </svg>
+  <table><tr><th>Léger</th><th>Moyen</th><th>Fort</th></tr><tr><td>corrige jusqu'à ± 5 dB</td><td>± 8 dB</td><td>± 12 dB</td></tr></table>
+</div>
+
+<div class="card">
+  <span class="tag">Sifflantes</span>
+  <h3>Adoucit les « s », « ch » et « z » qui sifflent</h3>
+  <p class="what">Certains micros et certaines voix rendent les « s » perçants, presque douloureux au casque.</p>
+  <p>L'outil inscrit une <strong>automation</strong> (la courbe « De-esser ») qui ne réagit que sur les sifflantes : chaque petit pic sur la courbe
+    correspond à un « s » adouci. Seuls les aigus (au-dessus de 5,5 kHz environ) sont baissés, le reste du mot n'est pas touché.</p>
+  <table><tr><th>Léger</th><th>Moyen</th><th>Fort</th></tr><tr><td>jusqu'à −4 dB, seulement les « s » marqués</td><td>−6 dB</td><td>−9 dB, plus sensible</td></tr></table>
+</div>
+
+<div class="card">
+  <span class="tag">Plosives</span>
+  <h3>Les « p » et « b » qui soufflent dans le micro</h3>
+  <p class="what">Sur un « P » ou un « B », l'air sort d'un coup et frappe la membrane du micro : on entend un « poum » sourd.</p>
+  <p>Deux actions :</p>
+  <ul>
+    <li>un <strong>filtre coupe-bas</strong> fixe, qui enlève l'extrême grave inutile pour une voix : à <strong>50 Hz</strong> (Léger),
+      <strong>60 Hz</strong> (Moyen) ou <strong>80 Hz</strong> (Fort) ;</li>
+    <li>une <strong>automation</strong> (la courbe « Sub ») qui coupe le très grave, sous 80 Hz, <em>uniquement</em> pendant les bouffées d'air.</li>
+  </ul>
+  <table><tr><th>Léger</th><th>Moyen</th><th>Fort</th></tr><tr><td>coupe-bas 50 Hz, bouffées −12 dB</td><td>60 Hz, −20 dB</td><td>80 Hz, −28 dB, plus sensible</td></tr></table>
+</div>
+
+<div class="card">
+  <span class="tag">Voix trop proche</span>
+  <h3>Les graves qui gonflent quand on colle le micro</h3>
+  <p class="what">Plus on s'approche d'un micro, plus la voix devient grave et « boomy » : c'est l'<strong>effet de proximité</strong>.</p>
+  <p>L'outil repère les passages où la voix est plus grave que d'habitude et inscrit une <strong>automation</strong> (la courbe « Graves »)
+    qui atténue tout ce qui se trouve <strong>sous 200 Hz</strong> environ, seulement à ces moments-là.</p>
+  <table><tr><th>Léger</th><th>Moyen</th><th>Fort</th></tr><tr><td>jusqu'à −5 dB</td><td>−8 dB</td><td>−12 dB</td></tr></table>
+</div>
+
+<div class="card">
+  <span class="tag">Équilibre de la voix</span>
+  <h3>Voix trop sourde, trop nasale ou trop brillante</h3>
+  <p class="what">Chaque voix et chaque micro ont leur couleur. Une égalisation toute faite, la même pour tout le monde, ne convient à personne.</p>
+  <p>L'outil applique une <strong>égalisation automatique</strong> : il compare le timbre de cette voix à celui d'une voix « moyenne »
+    de référence et corrige seulement l'écart. Ce réglage est fixe pour tout l'item (pas de courbe dans le temps).
+    Le graphique de la correction est visible dans <span class="btn">Réglages avancés</span>.</p>
+  <table><tr><th>Léger</th><th>Moyen</th><th>Fort</th></tr><tr><td>corrige jusqu'à ± 4 dB</td><td>± 6 dB</td><td>± 8 dB</td></tr></table>
+</div>
+
+<h2>Parole ou Chant ?</h2>
+<p><span class="btn on">Parole</span> pour un podcast, une voix off, une interview. <span class="btn">Chant</span> pour une voix chantée :
+  le niveau est corrigé plus doucement, pour respecter les nuances voulues par le chanteur.</p>
+
+<h2>Comparer avec et sans : Bypass</h2>
+<p>Une fois l'item traité, le bouton principal devient <span class="btn">Bypass</span>. Cliquez dessus pour entendre le
+  <strong>son d'origine</strong> (le bouton s'allume) ; recliquez pour réentendre le traitement. Rien n'est effacé.
+  Si vous changez un réglage pendant le bypass, le traitement se réactive pour que vous l'entendiez.</p>
+
+<h2>Retoucher un endroit précis</h2>
+<p>Un « B » de « Bonjour » qui souffle encore ? Un « s » qui siffle toujours ? Un mot trop faible ?</p>
+<ol class="steps">
+  <li>Gardez l'item sélectionné et faites une <strong>sélection temporelle</strong> sur ce son (glissez dans la règle du temps, en haut).</li>
+  <li>Dans <strong>Retouche locale</strong>, choisissez : <span class="btn">Plosive</span> (−6 à −24 dB de grave),
+    <span class="btn">Sifflante</span> (−3 à −12 dB d'aigus) ou <span class="btn">Niveau</span> (−3 à +3 dB).</li>
+  <li>Seule cette zone change. Recliquez sur le même bouton pour annuler, ou <span class="btn">Effacer la zone</span>.</li>
+</ol>
+<div class="tip">Les retouches restent mémorisées sur l'item : si vous changez ensuite un réglage général, elles sont gardées.</div>
+
+<h2>Raccourcis dans la fenêtre</h2>
+<table>
+  <tr><td><kbd>Espace</kbd></td><td>lecture / stop</td></tr>
+  <tr><td><kbd>Ctrl</kbd>+<kbd>Z</kbd> (Mac : <kbd>⌘</kbd>+<kbd>Z</kbd>)</td><td>annuler</td></tr>
+  <tr><td><kbd>Ctrl</kbd>+<kbd>Maj</kbd>+<kbd>Z</kbd> (Mac : <kbd>⌘</kbd>+<kbd>Maj</kbd>+<kbd>Z</kbd>)</td><td>rétablir</td></tr>
+  <tr><td><kbd>Échap</kbd></td><td>fermer la fenêtre (le traitement reste sur les items)</td></tr>
+</table>
+
+<h2>Bon à savoir</h2>
+<ul>
+  <li><strong>Faites le montage d'abord.</strong> Les courbes sont calculées pour l'audio tel qu'il est : si vous coupez ou déplacez ensuite,
+    relancez <span class="btn on">Analyser et appliquer</span>.</li>
+  <li><strong>Ne redessinez pas les courbes à la main</strong> : elles sont recalculées à chaque changement de réglage.
+    Pour corriger un endroit, utilisez la <strong>Retouche locale</strong>.</li>
+  <li><strong>Moins, c'est souvent mieux.</strong> Commencez en Moyen, écoutez au casque, puis ajustez. Si la voix sonne « étouffée »
+    ou « creuse », un traitement est trop fort.</li>
+  <li><strong>Pour tout enlever</strong> d'un item : <span class="btn">Réglages avancés</span> → <span class="btn">Retirer</span>.</li>
+</ul>
+<div class="tip warn">L'outil corrige une prise imparfaite, il ne remplace pas une bonne prise : placez le micro à une main de la bouche,
+  légèrement de côté, avec un filtre anti-pop si possible.</div>
+
+<footer>Vocal level &amp; de-esser · outil gratuit pour REAPER · Nicolas Debois · licence MIT</footer>
+</main>
+</body>
+</html>

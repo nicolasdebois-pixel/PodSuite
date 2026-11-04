@@ -1,5 +1,5 @@
 # Met à jour index.xml (ReaPack) à chaque envoi sur main.
-# Pour publier une nouvelle version : augmentez « version » dans podsuite.json et décrivez-la dans « changelog ».
+# Pour publier une nouvelle version : augmentez « version » dans toolbox.json et décrivez-la dans « changelog ».
 name: Index ReaPack
 on:
   push:
@@ -21,5 +21,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add index.xml
-          git commit -m "Index ReaPack $(python3 -c 'import json;print(json.load(open("podsuite.json"))["version"])')"
+          git commit -m "Index ReaPack $(python3 -c 'import json;print(json.load(open("toolbox.json"))["version"])')"
           git push

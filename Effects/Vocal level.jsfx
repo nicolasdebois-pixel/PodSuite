@@ -1,0 +1,106 @@
+desc:Vocal level & de-esser (gain automatisé)
+//tags: utility gain de-esser de-plosive eq
+//author: Nicolas Debois
+// Plugin piloté par le script « Vocal level & de-esser » : il applique les courbes et l'égalisation calculées par le script.
+// Ordre : coupe-bas → égalisation fixe → sub (plosives) → plateau grave (proximité) → plateau aigu (sifflantes) → rider.
+// Au repos (rider 0,5 ; graves, aigus et égalisation à 0), il ne modifie pas le son.
+slider1:rider=0.5<0,1,0.0001>-Rider (0,5 = 0 dB ; 0 = -24 dB ; 1 = +24 dB)
+slider2:deess=0<0,1,0.0001>-De-esser (0 = rien ; 1 = -24 dB)
+slider3:freq=5500<3000,10000,10>Fréquence du de-esser (Hz)
+slider4:split=1<0,1,1{Tout le signal,Aigus seulement}>Mode du de-esser
+slider5:lowcut=0<0,1,0.0001>-Graves (0 = rien ; 1 = -24 dB)
+slider6:lowfreq=200<60,400,1>Fréquence des graves (Hz)
+slider7:eq1=0<-12,12,0.1>Égalisation 100 Hz (plateau)
+slider8:eq2=0<-12,12,0.1>Égalisation 220 Hz
+slider9:eq3=0<-12,12,0.1>Égalisation 450 Hz
+slider10:eq4=0<-12,12,0.1>Égalisation 900 Hz
+slider11:eq5=0<-12,12,0.1>Égalisation 1,8 kHz
+slider12:eq6=0<-12,12,0.1>Égalisation 3,6 kHz
+slider13:eq7=0<-12,12,0.1>Égalisation 8 kHz (plateau)
+slider14:sub=0<0,1,0.0001>-Sub, plosives (0 = rien ; 1 = -30 dB)
+slider15:hpf=0<0,150,1>Coupe-bas (Hz ; 0 = désactivé)
+
+in_pin:gauche
+in_pin:droite
+out_pin:gauche
+out_pin:droite
+
+@init
+ext_tail_size = 0;
+gr = 1;
+smooth = exp(-1 / (0.002 * srate));      // lissage de 2 ms entre les points des courbes
+
+// biquad (forme directe transposée II)
+function bq(x) instance(b0 b1 b2 a1 a2 z1 z2) local(y) (
+  y = b0 * x + z1;
+  z1 = b1 * x - a1 * y + z2;
+  z2 = b2 * x - a2 * y;
+  y;
+);
+function set_lp(f) instance(b0 b1 b2 a1 a2) local(w c s al a0) (
+  w = 2 * $pi * min(f, srate * 0.45) / srate; c = cos(w); s = sin(w); al = s / (2 * 0.7071067811865476);
+  a0 = 1 + al; b0 = (1 - c) / 2 / a0; b1 = (1 - c) / a0; b2 = b0; a1 = -2 * c / a0; a2 = (1 - al) / a0;
+);
+// formules RBJ : type 0 = cloche, 1 = plateau grave, 2 = plateau aigu
+function set_eq(type f g q) instance(b0 b1 b2 a1 a2 on) local(A w c s al a0 sq) (
+  on = abs(g) > 0.01;
+  A = 10 ^ (g / 40); w = 2 * $pi * min(f, srate * 0.45) / srate; c = cos(w); s = sin(w); al = s / (2 * q);
+  type == 0 ? (
+    a0 = 1 + al / A; b0 = (1 + al * A) / a0; b1 = -2 * c / a0; b2 = (1 - al * A) / a0; a1 = -2 * c / a0; a2 = (1 - al / A) / a0;
+  ) : type == 1 ? (
+    sq = 2 * sqrt(A) * al;
+    a0 = (A + 1) + (A - 1) * c + sq;
+    b0 = A * ((A + 1) - (A - 1) * c + sq) / a0; b1 = 2 * A * ((A - 1) - (A + 1) * c) / a0; b2 = A * ((A + 1) - (A - 1) * c - sq) / a0;
+    a1 = -2 * ((A - 1) + (A + 1) * c) / a0; a2 = ((A + 1) + (A - 1) * c - sq) / a0;
+  ) : (
+    sq = 2 * sqrt(A) * al;
+    a0 = (A + 1) - (A - 1) * c + sq;
+    b0 = A * ((A + 1) + (A - 1) * c + sq) / a0; b1 = -2 * A * ((A - 1) + (A + 1) * c) / a0; b2 = A * ((A + 1) + (A - 1) * c - sq) / a0;
+    a1 = 2 * ((A - 1) - (A + 1) * c) / a0; a2 = ((A + 1) - (A - 1) * c - sq) / a0;
+  );
+);
+function eqx(x) instance(on) ( on ? this.bq(x) : x; );
+function set_hp(f) instance(b0 b1 b2 a1 a2 on) local(w c s al a0) (
+  on = f > 0;
+  w = 2 * $pi * max(10, min(f, srate * 0.45)) / srate; c = cos(w); s = sin(w); al = s / (2 * 0.7071067811865476);
+  a0 = 1 + al; b0 = (1 + c) / 2 / a0; b1 = -(1 + c) / a0; b2 = b0; a1 = -2 * c / a0; a2 = (1 - al) / a0;
+);
+function eqs() (
+  e1l.set_eq(1, 100, eq1, 0.7); e1r.set_eq(1, 100, eq1, 0.7);
+  e2l.set_eq(0, 220, eq2, 1.0); e2r.set_eq(0, 220, eq2, 1.0);
+  e3l.set_eq(0, 450, eq3, 1.0); e3r.set_eq(0, 450, eq3, 1.0);
+  e4l.set_eq(0, 900, eq4, 1.0); e4r.set_eq(0, 900, eq4, 1.0);
+  e5l.set_eq(0, 1800, eq5, 1.0); e5r.set_eq(0, 1800, eq5, 1.0);
+  e6l.set_eq(0, 3600, eq6, 1.0); e6r.set_eq(0, 3600, eq6, 1.0);
+  e7l.set_eq(2, 8000, eq7, 0.7); e7r.set_eq(2, 8000, eq7, 0.7);
+  hpl.set_hp(hpf); hpr.set_hp(hpf);
+);
+dl = dd = ds = 0; pdl = pdd = pds = 1000; plf = pf = 0;
+eqs();
+
+@slider
+eqs();
+
+@block
+// les courbes pilotent des plateaux (grave et aigu) dont on recalcule les coefficients à chaque bloc
+k = exp(-samplesblock / (0.002 * srate));
+tgl = -24 * lowcut; tgd = -24 * deess; tgs = -30 * sub;
+ds = tgs + (ds - tgs) * k;
+dl = tgl + (dl - tgl) * k;
+dd = tgd + (dd - tgd) * k;
+tr = 10 ^ ((rider * 48 - 24) / 20);
+// sub : deux plateaux à 80 Hz en cascade (pente raide : la voix au-dessus de 120 Hz n'est presque pas touchée)
+abs(ds - pds) > 0.02 ? ( u1l.set_eq(1, 80, ds / 2, 0.7); u2l.set_eq(1, 80, ds / 2, 0.7); u1r.set_eq(1, 80, ds / 2, 0.7); u2r.set_eq(1, 80, ds / 2, 0.7); pds = ds; );
+abs(dl - pdl) > 0.02 || lowfreq != plf ? ( sl.set_eq(1, lowfreq, dl, 0.6); sr.set_eq(1, lowfreq, dl, 0.6); pdl = dl; plf = lowfreq; );
+split ? (
+  abs(dd - pdd) > 0.02 || freq != pf ? ( hsl.set_eq(2, freq, dd, 0.6); hsr.set_eq(2, freq, dd, 0.6); pdd = dd; pf = freq; );
+  gfull = 1;
+) : (
+  hsl.on = hsr.on = 0;
+  gfull = 10 ^ (dd / 20);
+);
+
+@sample
+gr = tr + (gr - tr) * smooth;
+spl0 = hsl.eqx(sl.eqx(u2l.eqx(u1l.eqx(e7l.eqx(e6l.eqx(e5l.eqx(e4l.eqx(e3l.eqx(e2l.eqx(e1l.eqx(hpl.eqx(spl0)))))))))))) * gfull * gr;
+spl1 = hsr.eqx(sr.eqx(u2r.eqx(u1r.eqx(e7r.eqx(e6r.eqx(e5r.eqx(e4r.eqx(e3r.eqx(e2r.eqx(e1r.eqx(hpr.eqx(spl1)))))))))))) * gfull * gr;
