@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<index version="1" name="PodSuite" commit="7fec6aff1f81766f73e9feec120462f999a495e6">
+<index version="1" name="PodSuite" commit="0d5a1de60e0a2b4d906d12ee76c6e6f981262ae5">
   <category name="PodSuite">
     <reapack name="PodSuite" type="script" desc="PodSuite">
       <version name="0.3.0" author="Nicolas Debois" time="2026-10-29T19:10:01Z">
@@ -94,6 +94,24 @@
         <source file="PodSuite - Controle du niveau.lua" hash="1220915345b99e8249dfa651e7613d5a4fedcf1c510be1315c1fbe0383adfe50bcd7" main="main">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/7fec6aff1f81766f73e9feec120462f999a495e6/Scripts/PodSuite%20-%20Controle%20du%20niveau.lua</source>
         <source file="PodSuite limiter.jsfx" hash="12205cb0185750f3bf5d0cc69f4126026018a6da0d647c33b39999fd2d0ab6e041dc" type="effect">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/7fec6aff1f81766f73e9feec120462f999a495e6/Effects/PodSuite%20limiter.jsfx</source>
         <source file="PodSuite TP meter.jsfx" hash="1220b68a908d36fab851d67e6ad37cd8fba9c09b88dbb9dfbdfa66baed24c10296c4" type="effect">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/7fec6aff1f81766f73e9feec120462f999a495e6/Effects/PodSuite%20TP%20meter.jsfx</source>
+      </version>
+      <version name="0.6.0" author="Nicolas Debois" time="2026-11-04T10:19:44Z">
+        <changelog>• Nouvelle fenêtre « PodSuite » : une seule action à retenir, avec une page par étape (Accueil, Dérushage, Voix, Montage, Export) qui lance tous les outils ; elle peut s'ancrer dans REAPER
+• Nouveau « ripple sur les bords » (page Montage) : quand on raccourcit ou rallonge un item par un bord, ce qui suit (ou ce qui précède, au choix pour le bord gauche) se décale d'autant
+• Page Montage : ripple editing de REAPER (désactivé, par piste, toutes les pistes) en un clic
+• La page Voix lance Vocal level &amp; de-esser, ou explique comment l'installer</changelog>
+        <source file="PodSuite.lua" hash="122074c9d6f038e2b74c0d7fbe9facaee48a296a3c89a94a5f40541107ae91a34cf4" main="main">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/0d5a1de60e0a2b4d906d12ee76c6e6f981262ae5/Scripts/PodSuite.lua</source>
+        <source file="PodSuite - Installer.lua" hash="12207630ce748e3211d8c4c10ee692bcc3db3b8b2da2a681fd1461a310e1b58d26a7" main="main">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/0d5a1de60e0a2b4d906d12ee76c6e6f981262ae5/Scripts/PodSuite%20-%20Installer.lua</source>
+        <source file="PodSuite - Serveur.lua" hash="12206a2c9032931bc21c2e4ab03882b54e3f741c98d90daf17920e97c77e4e892f2b" main="main">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/0d5a1de60e0a2b4d906d12ee76c6e6f981262ae5/Scripts/PodSuite%20-%20Serveur.lua</source>
+        <source file="PodSuite - Transcrire.lua" hash="1220e4902d77876bbf83f3704434adaa17eb3fec011ad2d9cf7400eeeb95606ec5c8" main="main">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/0d5a1de60e0a2b4d906d12ee76c6e6f981262ae5/Scripts/PodSuite%20-%20Transcrire.lua</source>
+        <source file="PodSuite - Calibrer le clicker.lua" hash="12208330dcb0867bbee42f379618764bc608bc7a36715293ce72d226bee892cbcdd7" main="main">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/0d5a1de60e0a2b4d906d12ee76c6e6f981262ae5/Scripts/PodSuite%20-%20Calibrer%20le%20clicker.lua</source>
+        <source file="PodSuite - Reglages.lua" hash="122068169440a63d5fb18ac2fd77d7b6f7054e258b7b02878d2cfb524c21da0a69ee" main="main">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/0d5a1de60e0a2b4d906d12ee76c6e6f981262ae5/Scripts/PodSuite%20-%20Reglages.lua</source>
+        <source file="PodSuite_lib.lua" hash="1220c2ec6f01afeeb50deed01ea06504689a80c00b26e02d283efa4ef4a7200a183e">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/0d5a1de60e0a2b4d906d12ee76c6e6f981262ae5/Scripts/PodSuite_lib.lua</source>
+        <source file="podsuite.html" hash="1220b67b33a6cc4a7fa374438636bec4756123f75e903192ea27b81b772ffc057f54">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/0d5a1de60e0a2b4d906d12ee76c6e6f981262ae5/www/podsuite.html</source>
+        <source file="PodSuite - Controle du niveau.lua" hash="1220915345b99e8249dfa651e7613d5a4fedcf1c510be1315c1fbe0383adfe50bcd7" main="main">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/0d5a1de60e0a2b4d906d12ee76c6e6f981262ae5/Scripts/PodSuite%20-%20Controle%20du%20niveau.lua</source>
+        <source file="PodSuite limiter.jsfx" hash="12205cb0185750f3bf5d0cc69f4126026018a6da0d647c33b39999fd2d0ab6e041dc" type="effect">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/0d5a1de60e0a2b4d906d12ee76c6e6f981262ae5/Effects/PodSuite%20limiter.jsfx</source>
+        <source file="PodSuite TP meter.jsfx" hash="1220b68a908d36fab851d67e6ad37cd8fba9c09b88dbb9dfbdfa66baed24c10296c4" type="effect">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/0d5a1de60e0a2b4d906d12ee76c6e6f981262ae5/Effects/PodSuite%20TP%20meter.jsfx</source>
+        <source file="PodSuite - Ripple edge.lua" hash="122074c6300a9d394cd4147e3cd559de805e3140005137eeec7cb0c0416f10f96eb6" main="main">https://raw.githubusercontent.com/nicolasdebois-pixel/PodSuite/0d5a1de60e0a2b4d906d12ee76c6e6f981262ae5/Scripts/PodSuite%20-%20Ripple%20edge.lua</source>
       </version>
       <metadata>
         <description>{\rtf1\ansi\deff0{\fonttbl{\f0 \fswiss Helvetica;}}\f0\fs22 Transcription et d\u233?rushage de podcast dans REAPER : Whisper en local, d\u233?tection du clicker, montage par le texte, contr\u244?le du niveau avant l'export.\par}</description>
