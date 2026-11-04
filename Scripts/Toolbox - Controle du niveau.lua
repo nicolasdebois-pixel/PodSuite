@@ -69,7 +69,7 @@ local function draw()
   local N = NORMS[S.norm]
   text(string.format("%s LUFS intégrés (± %s LU) · true peak max %s dBTP", num(N.target, 0), num(N.tol, 0), num(N.tp, 0)), x + w - 2 * (bw + 6) + 6, y + 36, COL.muted, 2)
   y = y + 66
-  if reaper.GetExtState("PODSUITE", "expert") == "1" then        -- mode Expert : mesurer une partie seulement
+  if true then                                                   -- tout le projet, ou une partie seulement
     text("Portion mesurée", x, y + 6, COL.text, 1)
     if button("Tout le projet", x + w - 2 * (bw + 6) + 6, y, bw, 28, false, S.scope == "all") and not UI.busy then S.scope = "all"; save() end
     if button("Sélection temporelle", x + w - bw, y, bw, 28, false, S.scope == "sel") and not UI.busy then S.scope = "sel"; save() end

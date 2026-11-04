@@ -173,7 +173,7 @@ local PAGES = {
 local function usage() local u = reaper.GetExtState(SEC, "usage"); return u == "" and "both" or u end
 local function shown(pg) return not pg.use or usage() == "both" or usage() == pg.use end
 local page = reaper.GetExtState(SEC, "hub_page"); if page == "" then page = "home" end
-local function expert() return reaper.GetExtState(SEC, "expert") == "1" end
+local function expert() return true end                    -- tous les réglages sont toujours affichés
 local msg = ""
 -- le doublage passe REAPER en « auto-punch » : on remet le mode normal dès qu'on quitte la page Enregistrement
 local function restore_record_mode()
@@ -1107,7 +1107,6 @@ end
 local HELP = {
   home = { "Bienvenue", {
     "Cette fenêtre réunit tous les outils, dans l'ordre du travail : 1 Dérushage, 2 Montage, 3 Voix, 4 Export. Le doublage a ses deux pages : 5 Répliques et 6 Enregistrement.",
-    "Mode Simple : l'essentiel, pour démarrer. Mode Expert : tous les réglages. On peut changer à tout moment, en bas à gauche.",
     "Pastille rouge dans « Installation » : cliquez sur « Installer / réparer » (une seule fois par ordinateur).",
     "Ctrl/Cmd+Z annule, la barre d'espace lance ou arrête la lecture, même quand cette fenêtre est active." } },
   edit = { "Dérushage", {
@@ -1118,7 +1117,7 @@ local HELP = {
   cut = { "Montage", {
     "Aimantation : les items se collent aux bords de leurs voisins quand on les déplace.",
     "Ripple sur les bords : quand on raccourcit ou rallonge un item par un bord, ce qui suit (bord droit) ou ce qui précède (bord gauche) se décale d'autant, en direct.",
-    "Mode Expert : le ripple editing de REAPER (par piste ou toutes les pistes) pour les suppressions et déplacements." } },
+    "Ripple editing de REAPER (par piste ou toutes les pistes) : pour les suppressions et déplacements d'items." } },
   voice = { "Voix", {
     "À faire une fois le montage terminé. Sélectionnez les items de voix puis « Analyser et appliquer ».",
     "Chaque traitement a trois intensités. Commencez en Moyen, écoutez au casque, puis ajustez : si la voix devient étouffée ou creuse, c'est trop fort.",
@@ -1136,7 +1135,7 @@ local HELP = {
     "Ouvrez la bande sur l'écran de la cabine (ou la tablette). Le comédien voit l'image, la réplique à dire en entier, puis la bande qui défile.",
     "Choisissez le personnage, puis Précédente / Suivante pour vous placer. Écouter (vert) pour répéter, Enregistrer (rouge) pour la prise.",
     "Double bip avant la réplique : « bip, bip, top », on parle au troisième temps.",
-    "Chaque passage crée une prise sur la piste « Prises - Personnage ». Mode Expert : enregistrement en continu, boucle, pré-roll." } },
+    "Chaque passage crée une prise sur la piste « Prises - Personnage ». En continu : enchaîner plusieurs répliques jusqu'à « Arrêter »." } },
 }
 local help_open = false
 local function help_overlay(x, y, w, h)
@@ -1177,12 +1176,6 @@ local function draw()
     y = y + 40
     ::continue::
   end
-  -- mode simple / expert
-  text("Mode", 18, h - 132, COL.muted, 2)
-  local ex = expert()
-  local sbw = (sw - 36) / 2
-  if button("Simple", 16, h - 112, sbw, 26, false, not ex) then reaper.SetExtState(SEC, "expert", "0", true) end
-  if button("Expert", 20 + sbw, h - 112, sbw, 26, false, ex) then reaper.SetExtState(SEC, "expert", "1", true) end
   gfx.setfont(2); col(COL.muted)
   gfx.x, gfx.y = 18, h - 74; gfx.drawstr("Version " .. P.VERSION .. " · Nouveautés")
   if clicked and hit(16, h - 78, sw - 32, 20) then open_url("https://github.com/nicolasdebois-pixel/PodSuite/blob/main/CHANGELOG.md") end

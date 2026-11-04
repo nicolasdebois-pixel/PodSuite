@@ -11,8 +11,7 @@ local SEP = package.config:sub(1, 1)
 
 ---------------------------------------------------------------- Interface
 local AW, AH, SW, SH = 940, 750, 680, 720
-local EXPERT = reaper.GetExtState("PODSUITE", "expert") == "1"   -- mode Simple de la boîte à outils : pas de réglages avancés
-if not EXPERT then S.adv = 0 end
+local EXPERT = true
 local W, H = AW, AH
 if S.adv ~= 1 then W, H = SW, SH end
 local U = dofile(scriptdir .. "Toolbox_ui.lua")

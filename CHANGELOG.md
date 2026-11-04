@@ -1,5 +1,8 @@
 # Nouveautés de Podcast & ADR Toolbox
 
+## 0.9.9 — 04/11/2026
+- Le mode Simple est supprimé : tous les réglages sont toujours affichés
+
 ## 0.9.8 — 04/11/2026
 - Dérushage : export de la transcription (.txt), des sous-titres (.srt) et des chapitres YouTube / Spotify, d'après le montage
 - Doublage : prises comparables (◀ ▶) et « ★ Garder cette prise » ; liste « séance prête ? » ; export d'une piste par personnage (mode Expert)
