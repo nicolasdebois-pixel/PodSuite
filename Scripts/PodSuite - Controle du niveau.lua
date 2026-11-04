@@ -65,28 +65,12 @@ local function parse_stats(s)
   if not m.tp then
     for k, v in pairs(t) do if k:find("TRUE") and not k:find("POS") then m.tp = v end end
   end
-  m.tp_is_sample = (m.tp == nil and m.peak ~= nil)
-  if m.tp_is_sample then m.tp = m.peak end
   return m
 end
 
 local function has_timesel()
   local a, b = reaper.GetSet_LoopTimeRange(false, false, 0, 0, false)
   return b - a > 0.1
-end
-
--- renvoie la mesure, ou nil et un message d'erreur
-local function measure()
-  local sel = S.scope == "sel"
-  if sel and not has_timesel() then return nil, "Aucune sélection temporelle : faites-en une, ou choisissez « Tout le projet »." end
-  local id = find_action(sel and ACT_SEL or ACT_ALL)
-  if not id then return nil, "Cette version de REAPER ne sait pas mesurer avant l'export : installez REAPER 7 (gratuit à essayer)." end
-  local ok, stats = reaper.GetSetProjectInfo_String(0, "RENDER_STATS", tostring(id), false)
-  if not ok or not stats or stats == "" then return nil, "Mesure annulée." end
-  local m = parse_stats(stats)
-  if not m.lufs then return nil, "Mesure impossible (le projet est-il vide ou silencieux ?)." end
-  m.raw = stats
-  return m
 end
 
 ---------------------------------------------------------------- Limiteur sur le master
@@ -100,24 +84,24 @@ local function find_lim()
   return -1
 end
 
-local function jsfx_name()
+local function jsfx_name(FILE)
   -- ReaPack installe le plugin dans Effects/<dépôt>/<catégorie>/ ; on retrouve ce chemin depuis celui du script
   local res = reaper.GetResourcePath()
   local rel = scriptdir:sub(#res + 2):gsub("\\", "/")
   local inst = rel:match("^Scripts/(.*)$")
   local cands = {}
-  if inst then cands[#cands + 1] = inst .. LIMFILE end
-  cands[#cands + 1] = LIMFILE
+  if inst then cands[#cands + 1] = inst .. FILE end
+  cands[#cands + 1] = FILE
   for _, c in ipairs(cands) do
     local f = io.open(res .. "/Effects/" .. c, "rb")
     if f then f:close(); return "JS:" .. c end
   end
-  local src = io.open(scriptdir .. LIMFILE, "rb") or io.open(scriptdir .. ".." .. SEP .. "Effects" .. SEP .. LIMFILE, "rb")
+  local src = io.open(scriptdir .. FILE, "rb") or io.open(scriptdir .. ".." .. SEP .. "Effects" .. SEP .. FILE, "rb")
   if src then
     local data = src:read("a"); src:close()
     reaper.RecursiveCreateDirectory(res .. SEP .. "Effects", 0)
-    local f = io.open(res .. SEP .. "Effects" .. SEP .. LIMFILE, "wb")
-    if f then f:write(data); f:close(); return "JS:" .. LIMFILE end
+    local f = io.open(res .. SEP .. "Effects" .. SEP .. FILE, "wb")
+    if f then f:write(data); f:close(); return "JS:" .. FILE end
   end
 end
 
@@ -125,7 +109,7 @@ local function ensure_lim()
   local tr = master()
   local fx = find_lim()
   if fx < 0 then
-    local name = jsfx_name()
+    local name = jsfx_name(LIMFILE)
     if not name then return nil end
     fx = reaper.TrackFX_AddByName(tr, name, false, -1)
     if fx < 0 then return nil end
@@ -146,10 +130,58 @@ local function fader_db()
   return 20 * math.log(math.max(v, 1e-9), 10)
 end
 
+-- Mesureur de true peak posé temporairement en fin de chaîne du master pendant la mesure.
+-- Il voit le son après tous les effets du master ; le fader du master (appliqué après) est ajouté ensuite.
+local METERFILE, METERDESC = "PodSuite TP meter.jsfx", "PodSuite true peak meter"
+local function add_meter()
+  local name = jsfx_name(METERFILE)
+  if not name then return nil end
+  local tr = master()
+  local fx = reaper.TrackFX_AddByName(tr, name, false, -1)
+  if fx < 0 then return nil end
+  reaper.TrackFX_SetParam(tr, fx, 1, math.random(1, 999999))      -- remise à zéro
+  reaper.TrackFX_SetParam(tr, fx, 0, -150)
+  return fx
+end
+local function remove_meters()
+  local tr = master()
+  for i = reaper.TrackFX_GetCount(tr) - 1, 0, -1 do
+    local _, name = reaper.TrackFX_GetFXName(tr, i, "")
+    if name:find(METERDESC, 1, true) or name:find(METERFILE, 1, true) then reaper.TrackFX_Delete(tr, i) end
+  end
+end
+
+-- renvoie la mesure, ou nil et un message d'erreur
+local function measure()
+  local sel = S.scope == "sel"
+  if sel and not has_timesel() then return nil, "Aucune sélection temporelle : faites-en une, ou choisissez « Tout le projet »." end
+  local id = find_action(sel and ACT_SEL or ACT_ALL)
+  if not id then return nil, "Cette version de REAPER ne sait pas mesurer avant l'export : installez REAPER 7 (gratuit à essayer)." end
+  remove_meters()
+  local mfx = add_meter()
+  local ok, stats = reaper.GetSetProjectInfo_String(0, "RENDER_STATS", tostring(id), false)
+  local meter_tp
+  if mfx then
+    local v = reaper.TrackFX_GetParam(master(), mfx, 0)
+    if v and v > -149 then meter_tp = v + fader_db() end
+  end
+  remove_meters()
+  if not ok or not stats or stats == "" then return nil, "Mesure annulée." end
+  local m = parse_stats(stats)
+  if not m.lufs then return nil, "Mesure impossible (le projet est-il vide ou silencieux ?)." end
+  m.raw = stats
+  if not m.tp and meter_tp then m.tp = meter_tp; m.tp_src = "meter" end
+  if m.tp then m.tp_src = m.tp_src or "reaper"
+  elseif m.peak then m.tp, m.tp_src = m.peak, "sample" end           -- dernier recours : crête échantillon (dBFS)
+  if not m.tp then return nil, "Mesure du true peak impossible : resynchronisez les paquets dans ReaPack." end
+  return m
+end
+
 ---------------------------------------------------------------- Diagnostic et pistes
 local function verdict(m, N)
   local okL = math.abs(m.lufs - N.target) <= N.tol + 1e-6
   local okT = m.tp <= N.tp + 1e-6
+  if m.tp_src == "sample" then okT = m.tp <= N.tp - 1 end           -- le true peak peut dépasser la crête échantillon
   return okL, okT
 end
 
@@ -190,8 +222,8 @@ local function suggestions(m, N)
   if math.abs(fd) > 0.05 then
     out[#out + 1] = string.format("Le fader du master est à %s dB : il agit après le limiteur. La correction automatique le remet à 0 dB et reporte ce gain dans le limiteur.", sgn(fd))
   end
-  if m.tp_is_sample then
-    out[#out + 1] = "Remarque : REAPER n'a pas donné le true peak ; c'est la crête échantillon qui est affichée (un peu optimiste)."
+  if m.tp_src == "sample" then
+    out[#out + 1] = "Remarque : le true peak n'a pas pu être mesuré ; c'est la crête échantillon (dBFS) qui est affichée. Le true peak pouvant être un peu plus haut, on exige 1 dB de marge."
   end
   if S.scope == "sel" then
     out[#out + 1] = "Mesure sur la sélection temporelle seulement : la valeur du fichier complet peut être différente."
@@ -348,7 +380,7 @@ local function draw()
     local okL, okT = verdict(m, N)
     local tw = (w - 24) / 3
     tile(x, y, tw, 84, "Loudness intégrée", num(m.lufs) .. " LUFS", string.format("visé : %s à %s", num(N.target - N.tol, 0), num(N.target + N.tol, 0)), okL)
-    tile(x + tw + 12, y, tw, 84, m.tp_is_sample and "Crête (échantillon)" or "True peak", sgn(m.tp) .. " dBTP", "max : " .. num(N.tp, 0) .. " dBTP", okT)
+    tile(x + tw + 12, y, tw, 84, m.tp_src == "sample" and "Crête (échantillon)" or "True peak", sgn(m.tp) .. (m.tp_src == "sample" and " dBFS" or " dBTP"), m.tp_src == "sample" and ("max : " .. num(N.tp - 1, 0) .. " dBFS (marge)") or ("max : " .. num(N.tp, 0) .. " dBTP"), okT)
     tile(x + 2 * (tw + 12), y, tw, 84, "Écart de volume (LRA)", m.lra and (num(m.lra) .. " LU") or "—", "bas = voix régulière", m.lra and (m.lra <= LRA_HIGH) or nil)
     y = y + 100
     if okL and okT then text("✓  Prêt pour l'export", x, y, COL.ok, 3) else text("À corriger avant l'export", x, y, COL.bad, 3) end

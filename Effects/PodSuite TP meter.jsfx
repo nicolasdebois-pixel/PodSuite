@@ -1,0 +1,46 @@
+desc:PodSuite true peak meter
+//tags: meter true-peak analysis
+//author: Nicolas Debois
+// Mesureur posé temporairement en fin de chaîne du master par « PodSuite - Controle du niveau »
+// pendant la mesure : il relève le true peak (sur-échantillonnage x4) sans modifier le son.
+slider1:tp=-150<-150,24,0.01>-True peak relevé (dBTP)
+slider2:reset=0<0,1000000,1>-Remise à zéro
+
+in_pin:gauche
+in_pin:droite
+out_pin:gauche
+out_pin:droite
+
+@init
+NT = 32; NP = 4;
+p = 1;
+loop(NP - 1,
+  k = 0;
+  loop(NT,
+    x = (k - NT / 2 + 1) - p / NP;
+    s = abs(x) < 0.000000001 ? 1 : sin($pi * x) / ($pi * x);
+    w = 0.42 + 0.5 * cos($pi * x / (NT / 2)) + 0.08 * cos(2 * $pi * x / (NT / 2));
+    coef[p * NT + k] = s * max(w, 0);
+    k += 1;
+  );
+  p += 1;
+);
+hl = 200; hr = 300;
+memset(hl, 0, 200);
+mx = 0; tp = -150; lastreset = reset;
+
+@slider
+reset != lastreset ? ( mx = 0; tp = -150; memset(hl, 0, 200); lastreset = reset; );
+
+@sample
+memcpy(hl, hl + 1, NT - 1); hl[NT - 1] = spl0;
+memcpy(hr, hr + 1, NT - 1); hr[NT - 1] = spl1;
+pk = max(abs(spl0), abs(spl1));
+p = 1;
+loop(NP - 1,
+  sa = sb = 0; k = 0;
+  loop(NT, sa += hl[k] * coef[p * NT + k]; sb += hr[k] * coef[p * NT + k]; k += 1; );
+  pk = max(pk, max(abs(sa), abs(sb)));
+  p += 1;
+);
+pk > mx ? ( mx = pk; tp = 20 * log10(max(mx, 0.0000001)); );

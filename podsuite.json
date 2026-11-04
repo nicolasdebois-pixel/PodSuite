@@ -1,6 +1,6 @@
 {
   "name": "PodSuite",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "author": "Nicolas Debois",
   "description": "Transcription et dérushage de podcast dans REAPER : Whisper en local, détection du clicker, montage par le texte, contrôle du niveau avant l'export.",
   "main": [
@@ -20,11 +20,11 @@
     "Scripts/PodSuite_lib.lua",
     "www/podsuite.html",
     "Scripts/PodSuite - Controle du niveau.lua",
-    "Effects/PodSuite limiter.jsfx"
+    "Effects/PodSuite limiter.jsfx",
+    "Effects/PodSuite TP meter.jsfx"
   ],
   "changelog": [
-    "Nouvel outil « PodSuite - Controle du niveau » : mesure le mix avant l'export (loudness intégrée, true peak, écart de volume) et le compare à une norme : Podcast (−16 LUFS ± 1, true peak max −1 dBTP) ou Spotify (−14 LUFS ± 1, true peak max −1 dBTP)",
-    "Il explique quoi corriger et peut corriger automatiquement : gain + limiteur true peak (« PodSuite limiter ») en fin de chaîne du master, puis nouvelle mesure",
-    "Nécessite REAPER 6.71 ou plus récent"
+    "Contrôle du niveau : le true peak est maintenant mesuré par PodSuite (mesureur posé le temps de la mesure en fin de chaîne du master, puis retiré)",
+    "Si le true peak ne peut vraiment pas être mesuré, la crête échantillon est affichée en dBFS (et non plus en dBTP), avec 1 dB de marge exigé"
   ]
 }
