@@ -2,7 +2,7 @@
   "name": "Podcast & ADR Toolbox",
   "category": "Toolbox",
   "package": "Podcast & ADR Toolbox",
-  "version": "0.9.2",
+  "version": "0.9.3",
   "author": "Nicolas Debois",
   "description": "Boîte à outils gratuite pour REAPER : dérushage de podcast par le texte (Whisper en local), ripple sur les bords des items, traitement de la voix (Vocal level & de-esser), contrôle du niveau avant l'export, et doublage (ADR) avec bande rythmo sur tablette. Une seule action à retenir : « Podcast & ADR Toolbox ».",
   "files": [
@@ -83,7 +83,6 @@
     }
   ],
   "changelog": [
-    "Doublage : la vidéo du film s'affiche sur la tablette (ou l'écran de la cabine), au-dessus de la bande rythmo et calée sur la lecture de REAPER — le comédien voit l'image et la bande",
-    "Bouton « Vidéo » sur la bande, option « Vidéo sur la bande » dans la page Enregistrement"
+    "Bande rythmo : à l'arrêt, après « Précédente » ou « Suivante », le comédien voit la réplique qu'il va dire (son début juste après la barre) et l'image de son début ; au lancement, la bande glisse en douceur jusqu'au pré-roll puis suit REAPER"
   ]
 }
