@@ -1,0 +1,5 @@
+{
+  "_aide": "Projets d'exercice proposés dans l'Accueil. Mettez l'adresse d'une archive .zip contenant un projet REAPER (.rpp) et ses médias ; laissez vide pour masquer.",
+  "podcast": { "title": "Projet d'exercice : podcast", "url": "" },
+  "doublage": { "title": "Projet d'exercice : doublage", "url": "" }
+}

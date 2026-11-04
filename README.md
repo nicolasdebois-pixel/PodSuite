@@ -52,6 +52,10 @@ Conseil : si le limiteur doit réduire les crêtes de plus de 6 dB, régularisez
 (Vocal level & de-esser) : le résultat sonnera plus naturel.
 
 ## Pour le mainteneur : publier une version
+- Projets d'exercice de l'Accueil : mettez l'adresse d'une archive .zip (projet REAPER + médias) dans `Scripts/Toolbox_demo.json`.
+- Whisper pour Mac : onglet *Actions* › « Whisper pour Mac » › *Run workflow* (recompile et publie la version « whisper-macos »).
+- Avant de pousser : `python3 tools/release.py` (recopie la version et complète CHANGELOG.md).
+
 1. Modifiez les fichiers dans `Scripts/`, `Effects/` ou `www/`.
 2. Dans `toolbox.json`, augmentez `version` et décrivez les changements dans `changelog`.
 3. Envoyez sur la branche `main`. GitHub met à jour `index.xml` tout seul (onglet *Actions*),

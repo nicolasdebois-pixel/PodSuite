@@ -9,6 +9,9 @@ local RES = P.RES
 local HF = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/"
 local WIN_ZIP = "https://github.com/ggml-org/whisper.cpp/releases/latest/download/whisper-bin-x64.zip"
 local VCREDIST = "https://aka.ms/vs/17/release/vc_redist.x64.exe"
+local MAC_BIN = "https://github.com/nicolasdebois-pixel/PodSuite/releases/download/whisper-macos/whisper-cli-macos-"
+-- Dossier commun d'une salle de cours : le service informatique y dépose Whisper et le modèle une seule fois
+local SHARED = P.WIN and ((os.getenv("ProgramData") or "C:\\ProgramData") .. "\\Podcast ADR Toolbox") or "/Users/Shared/Podcast ADR Toolbox"
 local BREW_INSTALL = '/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'
 local MODELS = {
   { name = "Précis", file = "ggml-large-v3-turbo-q5_0.bin", mb = 547, note = "Mac Apple Silicon, PC récent" },
@@ -136,10 +139,29 @@ end
 local function step_whisper()
   set("whisper", "doing", "recherche…"); y()
   if P.exists(P.get("whisper")) then set("whisper", "ok", "déjà installé"); return end
+  -- déjà fourni par le service informatique ?
+  local shared = find_file(SHARED, P.WIN and "whisper-cli.exe" or "whisper-cli")
+  if shared then P.set("whisper", shared); set("whisper", "ok", "dossier commun de la salle"); return end
 
   if not P.WIN then
     local found
     for _, p in ipairs({ "/opt/homebrew/bin/whisper-cli", "/usr/local/bin/whisper-cli" }) do if P.exists(p) then found = p end end
+    if not found then                                        -- version prête à l'emploi (sans Homebrew)
+      local arch = reaper.GetOS():find("arm64") and "arm64" or "x86_64"
+      local dest = RES .. "/whisper"
+      reaper.RecursiveCreateDirectory(dest, 0)
+      local bin = dest .. "/whisper-cli"
+      if not P.exists(bin) then
+        set("whisper", "doing", "téléchargement…")
+        run_bg({ "/usr/bin/curl -L --fail -sS -o " .. q(bin .. ".part") .. " " .. q(MAC_BIN .. arch), "/bin/mv " .. q(bin .. ".part") .. " " .. q(bin), "/bin/chmod +x " .. q(bin) },
+          dest .. "/download.log", function(t) local mb = file_size(bin .. ".part") / 1048576; status_line = string.format("Téléchargement de Whisper… %.1f Mo", mb); progress = math.min(0.95, mb / 6) end)
+        progress = nil
+      end
+      if P.exists(bin) then
+        local _, out = exec_sync("/bin/sh -c '\"" .. bin .. "\" --help 2>&1'", 15000)
+        if out:lower():find("usage") then found = bin else os.remove(bin) end
+      end
+    end
     if not found then
       local brew
       for _, p in ipairs({ "/opt/homebrew/bin/brew", "/usr/local/bin/brew" }) do if P.exists(p) then brew = p end end
@@ -194,7 +216,11 @@ local function step_model()
   if is_model(P.get("model")) then set("model", "ok", (P.get("model"):match("([^/\\]+)$"))); return end
   local mdir = RES .. P.SEP .. "models"
   reaper.RecursiveCreateDirectory(mdir, 0)
-  -- un modèle déjà téléchargé ?
+  -- un modèle déjà téléchargé, ou déposé dans le dossier commun de la salle ?
+  for _, m in ipairs(MODELS) do
+    local sp = find_file(SHARED, m.file)
+    if sp and is_model(sp) then P.set("model", sp); set("model", "ok", m.file .. " (dossier commun)"); return end
+  end
   for _, m in ipairs(MODELS) do
     local p = mdir .. P.SEP .. m.file
     if is_model(p) then P.set("model", p); set("model", "ok", m.file); return end

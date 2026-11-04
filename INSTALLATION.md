@@ -79,7 +79,7 @@ Cette étape est nécessaire pour **transcrire** : dérushage d'un podcast, ou r
    - vous guide pour activer l'**interface web de REAPER**, qui affiche la page de dérushage dans votre navigateur : dans la fenêtre des préférences qui s'ouvre, rubrique **Control/OSC/web** › **Add** › **Web browser interface**, avec le port proposé par l'assistant, puis **OK** ;
    - termine par un test de transcription.
 
-**Sur Mac**, Whisper s'installe avec **Homebrew**. S'il n'est pas encore installé, l'assistant affiche une commande à copier dans le **Terminal** : le mot de passe du Mac est demandé. Relancez ensuite **Installer / réparer**.
+**Sur Mac**, l'assistant télécharge une version de Whisper prête à l'emploi (puces Apple et Intel). Si ce téléchargement échoue, il passe par **Homebrew** : s'il n'est pas installé, l'assistant affiche une commande à copier dans le **Terminal** (le mot de passe du Mac est demandé), puis relancez **Installer / réparer**.
 
 **Sur Windows**, si l'assistant signale un composant Microsoft manquant, installez *Visual C++ Redistributable (x64)* avec le lien qu'il donne, puis relancez **Installer / réparer**.
 
@@ -121,6 +121,21 @@ Si vous aviez ajouté séparément les dépôts **PodSuite** ou **Vocal level & 
 3. Refaites les étapes 2 à 4 ci-dessus.
 
 Vos réglages et la transcription déjà installée (Whisper, modèle) sont conservés.
+
+## Pour le service informatique (salle de cours)
+
+Pour éviter que chaque étudiant télécharge Whisper et le modèle (environ 500 Mo) :
+
+1. Créez un **dossier commun** :
+   - Mac : `/Users/Shared/Podcast ADR Toolbox`
+   - Windows : `C:\ProgramData\Podcast ADR Toolbox`
+2. Déposez-y **Whisper** (Mac : le fichier `whisper-cli` ; Windows : le dossier dézippé de whisper.cpp contenant `whisper-cli.exe`) et **un modèle** (par exemple `ggml-large-v3-turbo-q5_0.bin`, téléchargeable sur huggingface.co/ggerganov/whisper.cpp). Le dossier doit être lisible par tous les comptes.
+3. À l'étape 5, l'assistant trouve ces fichiers et ne télécharge rien.
+
+À savoir pour les postes partagés :
+- Les réglages de la boîte à outils sont enregistrés **par compte utilisateur** (dans le dossier de REAPER de chaque compte).
+- La traduction automatique gratuite est limitée **par adresse internet** : toute la salle partage la même limite. Chaque étudiant doit indiquer son e-mail (ou sa clé DeepL gratuite) dans **Répliques › ⚙ Réglages de traduction**.
+- Le pare-feu doit autoriser REAPER à recevoir des connexions sur le réseau local si la bande rythmo est affichée sur une tablette.
 
 ## En cas de problème
 

@@ -2,7 +2,7 @@
 -- (ne pas lancer directement : chargé par les autres scripts)
 
 local P = {}
-P.VERSION = "0.9.7"
+P.VERSION = "0.9.8"
 P.SECTION = "PODSUITE"
 P.WIN = reaper.GetOS():find("Win") ~= nil
 P.SEP = P.WIN and "\\" or "/"
@@ -139,7 +139,9 @@ function P.project()
   if not fn or fn == "" then return proj, nil end
   local dir = fn:match("^(.*)[/\\]")
   local name = fn:match("([^/\\]+)$"):gsub("%.[Rr][Pp][Pp]$", "")
-  return proj, fn, dir .. P.SEP .. "PodSuite", name
+  local data = dir .. P.SEP .. "Transcription"
+  if P.exists(dir .. P.SEP .. "PodSuite" .. P.SEP .. "transcript.json") then data = dir .. P.SEP .. "PodSuite" end   -- anciens projets
+  return proj, fn, data, name
 end
 
 function P.www_dir()

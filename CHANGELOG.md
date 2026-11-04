@@ -1,5 +1,12 @@
 # Nouveautés de Podcast & ADR Toolbox
 
+## 0.9.8 — 04/11/2026
+- Dérushage : export de la transcription (.txt), des sous-titres (.srt) et des chapitres YouTube / Spotify, d'après le montage
+- Doublage : prises comparables (◀ ▶) et « ★ Garder cette prise » ; liste « séance prête ? » ; export d'une piste par personnage (mode Expert)
+- Accueil : « Je fais du podcast / du doublage / les deux » n'affiche que les pages utiles ; projets d'exercice téléchargeables (si l'enseignant en publie)
+- Mac : Whisper s'installe sans Homebrew (version prête à l'emploi) ; salle de cours : Whisper et le modèle peuvent être déposés une fois dans un dossier commun
+- Les nouvelles transcriptions sont rangées dans un dossier « Transcription » à côté du projet
+
 ## 0.9.7 — 04/11/2026
 - Fenêtre unique : Vocal level & de-esser est intégré à la page Voix, le contrôle du niveau à la page Export
 - Voix : sous chaque traitement, « ce qui a été fait » en une phrase (ex. « 11 sifflantes adoucies… »), pour comprendre et pas seulement appliquer

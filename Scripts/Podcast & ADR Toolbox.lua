@@ -162,14 +162,16 @@ end
 
 local PAGES = {
   { id = "home", name = "Accueil" },
-  { id = "edit", name = "1 · Dérushage" },
+  { id = "edit", name = "1 · Dérushage", use = "podcast" },
   { id = "cut", name = "2 · Montage" },
   { id = "voice", name = "3 · Voix" },
   { id = "export", name = "4 · Export" },
-  { section = "DOUBLAGE (ADR)" },
-  { id = "lines", name = "5 · Répliques" },
-  { id = "rec", name = "6 · Enregistrement" },
+  { section = "DOUBLAGE (ADR)", use = "adr" },
+  { id = "lines", name = "5 · Répliques", use = "adr" },
+  { id = "rec", name = "6 · Enregistrement", use = "adr" },
 }
+local function usage() local u = reaper.GetExtState(SEC, "usage"); return u == "" and "both" or u end
+local function shown(pg) return not pg.use or usage() == "both" or usage() == pg.use end
 local page = reaper.GetExtState(SEC, "hub_page"); if page == "" then page = "home" end
 local function expert() return reaper.GetExtState(SEC, "expert") == "1" end
 local msg = ""
@@ -202,8 +204,68 @@ local function action_row(x, y, w, title, desc, label, primary, disabled, extra)
   return math.max(ny + 12, y + 66), pressed
 end
 
+-- projets d'exercice : adresses dans Toolbox_demo.json (modifiable par l'enseignant dans le dépôt)
+local DEMO = (function()
+  local ok, d = pcall(P.json_decode, P.read_file(dir .. "Toolbox_demo.json") or "")
+  return ok and type(d) == "table" and d or {}
+end)()
+local demo_job
+local function demo_start(key)
+  local d = DEMO[key]; if not d or not d.url or d.url == "" then return end
+  local base = P.RES .. P.SEP .. "exercices" .. P.SEP .. key
+  reaper.RecursiveCreateDirectory(base, 0)
+  local zip, st = base .. ".zip", base .. ".status"
+  os.remove(st)
+  local function q(x) return '"' .. x .. '"' end
+  local cmd
+  if P.WIN then
+    cmd = 'cmd.exe /C "curl.exe -L --fail -sS -o ' .. q(zip) .. " " .. q(d.url) .. " && tar.exe -xf " .. q(zip) .. " -C " .. q(base) .. " && (echo ok>" .. q(st) .. ") || (echo fail>" .. q(st) .. ')"'
+  else
+    local sh = "/usr/bin/curl -L --fail -sS -o " .. q(zip) .. " " .. q(d.url) .. " && /usr/bin/unzip -oq " .. q(zip) .. " -d " .. q(base) ..
+      " && echo ok > " .. q(st) .. " || echo fail > " .. q(st)
+    cmd = "/bin/sh -c '" .. sh:gsub("'", "'\\''") .. "'"
+  end
+  reaper.ExecProcess(cmd, -1)
+  demo_job = { key = key, base = base, st = st, t0 = reaper.time_precise() }
+end
+local function find_rpp(root, depth)
+  depth = depth or 0
+  local i = 0
+  while true do
+    local f = reaper.EnumerateFiles(root, i); if not f then break end
+    if f:lower():match("%.rpp$") then return root .. P.SEP .. f end
+    i = i + 1
+  end
+  if depth >= 3 then return end
+  i = 0
+  while true do
+    local d = reaper.EnumerateSubdirectories(root, i); if not d then break end
+    if not d:match("^__MACOSX") then local r = find_rpp(root .. P.SEP .. d, depth + 1); if r then return r end end
+    i = i + 1
+  end
+end
+local function demo_poll()
+  if not demo_job then return end
+  local r = P.read_file(demo_job.st)
+  if r and r:find("ok") then
+    local rpp = find_rpp(demo_job.base)
+    demo_job = nil
+    if rpp then reaper.Main_openProject(rpp); msg = "Projet d'exercice ouvert. Enregistrez-le sous un autre nom (Fichier › Enregistrer sous) pour garder l'original intact."
+    else msg = "Téléchargé, mais aucun projet REAPER (.rpp) dans l'archive." end
+  elseif r and r:find("fail") then demo_job = nil; msg = "Téléchargement du projet d'exercice impossible (connexion internet ?)."
+  end
+end
+
 local function page_home(x, y, w)
   y = header(x, y, w, "Bienvenue", "Tout ce qu'il faut pour monter un podcast dans REAPER, dans l'ordre : on dérushe à partir du texte, on peaufine le montage, on soigne la voix, puis on vérifie le niveau avant d'exporter. Pour le doublage : pages Répliques et Enregistrement.")
+  -- ce que l'étudiant fait : seules les pages utiles sont affichées
+  text("Je fais", x, y + 7, COL.text, 4)
+  local ux = x + 80
+  for _, u in ipairs({ { "podcast", "du podcast" }, { "adr", "du doublage" }, { "both", "les deux" } }) do
+    local uw, uc = chip(u[2], ux, y, nil, usage() == u[1]); if uc then reaper.SetExtState(SEC, "usage", u[1], true) end
+    ux = ux + uw + 6
+  end
+  y = y + 44
   -- état de l'installation
   local whisper_ok = P.settings_ok()
   local web_ok = P.web_port() ~= nil
@@ -241,8 +303,161 @@ local function page_home(x, y, w)
     wrap(c[3], cx + 12, y + 42, cw - 24, COL.muted, 2)
     if clicked and over then go(c[1]) end
   end
+  if usage() == "adr" then                                    -- doublage : raccourcis vers les pages du doublage
+    y = y + 132
+    for i, c in ipairs({ { "lines", "5 · Répliques", "Depuis la VO, un SRT ou à la main." }, { "rec", "6 · Enregistrement", "Bande rythmo en cabine, prises, bips." } }) do
+      local cx = x + (i - 1) * (cw + 12)
+      local over = hit(cx, y, cw, 108)
+      col(COL.panel, over and 1 or 0.85); gfx.rect(cx, y, cw, 108, 1)
+      col(COL.ok); gfx.rect(cx, y, cw, 3, 1)
+      text(c[2], cx + 12, y + 14, COL.text, 5)
+      wrap(c[3], cx + 12, y + 42, cw - 24, COL.muted, 2)
+      if clicked and over then go(c[1]) end
+    end
+    y = y - 132 + 120
+  end
   y = y + 140
-  wrap("Astuce : mettez l'action « Podcast & ADR Toolbox » dans une barre d'outils (clic droit sur la barre › Personnaliser) ; c'est la seule à retenir. Le bouton « Ancrer » en bas à gauche place cette fenêtre dans REAPER.", x, y, w, COL.muted, 2)
+  -- projets d'exercice (si l'enseignant en a publié)
+  local any = false
+  for _, k in ipairs({ "podcast", "doublage" }) do if DEMO[k] and DEMO[k].url and DEMO[k].url ~= "" then any = true end end
+  if any then
+    text("S'EXERCER", x, y, COL.muted, 4)
+    y = y + 22
+    local bx = x
+    for _, k in ipairs({ "podcast", "doublage" }) do
+      local d = DEMO[k]
+      if d and d.url and d.url ~= "" then
+        local lab = demo_job and demo_job.key == k and string.format("Téléchargement… %d s", math.floor(reaper.time_precise() - demo_job.t0)) or (d.title or ("Projet d'exercice : " .. k))
+        gfx.setfont(4); local bw = gfx.measurestr(lab) + 40
+        if button(lab, bx, y, bw, 32, false, false, demo_job ~= nil) then demo_start(k) end
+        bx = bx + bw + 8
+      end
+    end
+    y = y + 46
+  end
+  y = wrap("Astuce : mettez l'action « Podcast & ADR Toolbox » dans une barre d'outils (clic droit sur la barre › Personnaliser) ; c'est la seule à retenir. Le bouton « Ancrer » en bas à gauche place cette fenêtre dans REAPER.", x, y, w, COL.muted, 2)
+  return y + 20
+end
+
+---------------------------------------------------------------- Exports du dérushage : texte, sous-titres, chapitres
+-- Le texte suit le MONTAGE : les mots barrés disparaissent et les temps sont ceux de la version montée.
+local ACC_UP = { ["à"] = "À", ["â"] = "Â", ["ä"] = "Ä", ["é"] = "É", ["è"] = "È", ["ê"] = "Ê", ["ë"] = "Ë", ["î"] = "Î", ["ï"] = "Ï",
+  ["ô"] = "Ô", ["ö"] = "Ö", ["ù"] = "Ù", ["û"] = "Û", ["ü"] = "Ü", ["ç"] = "Ç", ["ñ"] = "Ñ" }
+local function upper(s) return (s:upper():gsub("[\xC3][\x80-\xBF]", function(c) return ACC_UP[c] or c end)) end
+local function tc_srt(t)
+  t = math.max(0, t)
+  local ms = math.floor(t * 1000 + 0.5)
+  return string.format("%02d:%02d:%02d,%03d", ms // 3600000, (ms // 60000) % 60, (ms // 1000) % 60, ms % 1000)
+end
+local function tc_chap(t)
+  t = math.max(0, math.floor(t + 0.5))
+  if t >= 3600 then return string.format("%d:%02d:%02d", t // 3600, (t // 60) % 60, t % 60) end
+  return string.format("%02d:%02d", t // 60, t % 60)
+end
+
+-- mots gardés, avec leur temps dans le montage ; nil + message si pas de transcription
+local function kept_words()
+  local _, fn, ddir, name = P.project()
+  if not fn then return nil, "Enregistrez d'abord le projet." end
+  local ok, data = pcall(P.json_decode, P.read_file(ddir .. P.SEP .. "transcript.json") or "")
+  if not ok or type(data) ~= "table" or not data.words then return nil, "Pas encore de transcription pour ce projet (page Dérushage › Transcrire)." end
+  local struck = {}
+  for _, r in ipairs((data.edits or {}).strikes or {}) do for i = r[1] + 1, r[2] + 1 do struck[i] = true end end
+  local segs
+  local okm, map = pcall(P.json_decode, P.read_file(P.www_dir() .. P.SEP .. "podsuite_map.json") or "")
+  if okm and type(map) == "table" and type(map.segs) == "table" and #map.segs > 0 and next(struck) then segs = map.segs end
+  local function remap(t)
+    if not segs then return t end
+    for _, s in ipairs(segs) do if t >= s[1] - 0.005 and t < s[2] + 0.005 then return s[3] + (t - s[1]) end end
+  end
+  local out = {}
+  for i, w in ipairs(data.words) do
+    if not struck[i] and not w.gap and w.w and w.w ~= "" then
+      local a, b = remap(w.a), remap(w.b)
+      if a then
+        local sp = data.speakers and data.speakers[w.s or 0]
+        out[#out + 1] = { w = w.w, a = a, b = b or (a + 0.2), who = sp and sp.name or "" }
+      end
+    end
+  end
+  return out, nil, ddir:gsub("[/\\]PodSuite$", ""):gsub("[/\\]Transcription$", ""), name
+end
+
+local function save_text(path, s)
+  if not P.write_file(path, s) then return false end
+  return true
+end
+
+local function export_transcript(kind)
+  local words, err, folder, name = kept_words()
+  if not words then msg = err; return end
+  if #words == 0 then msg = "Aucun mot à exporter."; return end
+  local path
+  if kind == "txt" then
+    local paras, cur, who = {}, {}, nil
+    for i, w in ipairs(words) do
+      local gap = i > 1 and (w.a - words[i - 1].b) or 0
+      if w.who ~= who or gap > 2.5 then
+        if #cur > 0 then paras[#paras + 1] = (who and who ~= "" and (upper(who) .. " : ") or "") .. table.concat(cur, " ") end
+        cur, who = {}, w.who
+      end
+      cur[#cur + 1] = w.w
+    end
+    if #cur > 0 then paras[#paras + 1] = (who and who ~= "" and (upper(who) .. " : ") or "") .. table.concat(cur, " ") end
+    path = folder .. P.SEP .. name .. " - transcription.txt"
+    save_text(path, table.concat(paras, "\n\n") .. "\n")
+  elseif kind == "srt" then
+    local cues, cur = {}, {}
+    local function flush()
+      if #cur == 0 then return end
+      local text = {}
+      for _, w in ipairs(cur) do text[#text + 1] = w.w end
+      local t = table.concat(text, " ")
+      if #t > 42 then                                        -- deux lignes équilibrées
+        local mid, best = #t // 2, nil
+        for pos in t:gmatch("() ") do if not best or math.abs(pos - mid) < math.abs(best - mid) then best = pos end end
+        if best then t = t:sub(1, best - 1) .. "\n" .. t:sub(best + 1) end
+      end
+      cues[#cues + 1] = { a = cur[1].a, b = cur[#cur].b, t = t }
+      cur = {}
+    end
+    for i, w in ipairs(words) do
+      local chars = 0
+      for _, c in ipairs(cur) do chars = chars + #c.w + 1 end
+      if #cur > 0 and (w.a - cur[#cur].b > 0.7 or w.who ~= cur[1].who or chars + #w.w > 80 or w.a - cur[1].a > 6) then flush() end
+      cur[#cur + 1] = w
+      if w.w:match("[%.%?!…]$") and chars > 25 then flush() end
+    end
+    flush()
+    local out = {}
+    for k, c in ipairs(cues) do
+      local b = math.max(c.b, c.a + 1.0)
+      if cues[k + 1] then b = math.min(b, cues[k + 1].a - 0.04) end
+      out[#out + 1] = string.format("%d\n%s --> %s\n%s\n", k, tc_srt(c.a), tc_srt(b), c.t)
+    end
+    path = folder .. P.SEP .. name .. ".srt"
+    save_text(path, table.concat(out, "\n"))
+  end
+  msg = "Exporté à côté du projet : " .. path
+end
+
+local function export_chapters()
+  local _, fn, ddir, name = P.project()
+  if not fn then msg = "Enregistrez d'abord le projet."; return end
+  local list = {}
+  for i = 0, reaper.CountProjectMarkers(0) - 1 do
+    local _, isrgn, pos, _, nm = reaper.EnumProjectMarkers(i)
+    if not isrgn and nm ~= "" and nm:sub(1, 4) ~= "PS: " then list[#list + 1] = { pos, nm } end
+  end
+  if #list == 0 then msg = "Aucun chapitre : placez des marqueurs (touche M) au début de chaque partie, puis nommez-les (double-clic sur le marqueur)."; return end
+  table.sort(list, function(a, b) return a[1] < b[1] end)
+  local lines = {}
+  if list[1][1] > 1 then lines[#lines + 1] = "00:00 Introduction" end          -- YouTube exige un premier chapitre à 00:00
+  for _, c in ipairs(list) do lines[#lines + 1] = tc_chap(c[1]) .. " " .. c[2] end
+  local folder = fn:match("^(.*)[/\\]")
+  local path = folder .. P.SEP .. name .. " - chapitres.txt"
+  P.write_file(path, table.concat(lines, "\n") .. "\n")
+  msg = "Chapitres exportés (format YouTube / Spotify, à coller dans la description) : " .. path
 end
 
 local function page_edit(x, y, w)
@@ -270,6 +485,16 @@ local function page_edit(x, y, w)
     y, p = action_row(x, y, w, "Réglages de transcription", "Emplacement de Whisper, modèle, langue, vocabulaire.", "Réglages")
     if p then run(own("settings")) end
   end
+  -- exports
+  col(COL.line); gfx.line(x, y, x + w, y)
+  text("Exporter", x, y + 14, COL.text, 5)
+  y = wrap("Le texte suit le montage : les passages barrés n'y sont plus. Fichiers créés à côté du projet. Chapitres : marqueurs nommés (touche M).", x, y + 38, w, COL.muted, 2) + 8
+  local cx = x
+  local w1, c1 = chip("Transcription (.txt)", cx, y, nil, false); cx = cx + w1 + 6
+  local w2, c2 = chip("Sous-titres (.srt)", cx, y, nil, false); cx = cx + w2 + 6
+  local _, c3 = chip("Chapitres (YouTube / Spotify)", cx, y, nil, false)
+  if c1 then export_transcript("txt") elseif c2 then export_transcript("srt") elseif c3 then export_chapters() end
+  return y + 50
 end
 
 ---------------------------------------------------------------- Voix : Vocal level & de-esser, dans la page
@@ -694,10 +919,62 @@ function rec_go(D, i, how)
 end
 local GREEN, RED = { 0.19, 0.62, 0.34 }, { 0.86, 0.22, 0.2 }
 
+-- prises d'une réplique : items (et prises internes) de la piste « Prises - Nom » qui recouvrent la réplique
+local function line_takes(l)
+  local tr = A.find_track(A.REC_PREFIX .. l.who)
+  local out = {}
+  if not tr then return out end
+  local a, b = l.pos - 0.5, l.pos + l.len + 1
+  for j = 0, reaper.CountTrackMediaItems(tr) - 1 do
+    local it = reaper.GetTrackMediaItem(tr, j)
+    local p0 = reaper.GetMediaItemInfo_Value(it, "D_POSITION")
+    local p1 = p0 + reaper.GetMediaItemInfo_Value(it, "D_LENGTH")
+    if p1 > a and p0 < b then
+      local act = reaper.GetActiveTake(it)
+      for k = 0, reaper.CountTakes(it) - 1 do
+        local tk = reaper.GetTake(it, k)
+        out[#out + 1] = { item = it, take = tk, current = reaper.GetMediaItemInfo_Value(it, "B_MUTE") == 0 and tk == act,
+          kept = reaper.GetMediaItemInfo_Value(it, "I_CUSTOMCOLOR") == (reaper.ColorToNative(48, 209, 88) | 0x1000000) and tk == act }
+      end
+    end
+  end
+  return out
+end
+local function choose_take(list, n, keep)
+  local e = list[n]; if not e then return end
+  reaper.Undo_BeginBlock()
+  for _, o in ipairs(list) do
+    if o.item ~= e.item then
+      reaper.SetMediaItemInfo_Value(o.item, "B_MUTE", 1)
+      if keep then reaper.SetMediaItemInfo_Value(o.item, "I_CUSTOMCOLOR", 0) end
+    end
+  end
+  reaper.SetMediaItemInfo_Value(e.item, "B_MUTE", 0)
+  reaper.SetActiveTake(e.take)
+  if keep then reaper.SetMediaItemInfo_Value(e.item, "I_CUSTOMCOLOR", reaper.ColorToNative(48, 209, 88) | 0x1000000) end
+  reaper.Undo_EndBlock(keep and "Toolbox : prise gardée" or "Toolbox : choix de la prise", -1)
+  reaper.UpdateArrange()
+end
+
 local function page_rec(x, y, w)
   y = header(x, y, w, "Enregistrement", "La bande rythmo s'affiche dans un navigateur : sur l'écran de la cabine ou sur une tablette du même réseau Wi-Fi, avec la vidéo du film au-dessus, calée sur REAPER.")
   local D = adr_data()
   local on = adr_server_on()
+  do                                                         -- la séance est-elle prête ?
+    local vstate0 = (reaper.GetExtState(A.SEC, "video"):match("([^|]*)$")) or ""
+    local checks = {
+      { #D.lines > 0, #D.lines > 0 and string.format("%d réplique%s", #D.lines, #D.lines > 1 and "s" or "") or "Pas de répliques" },
+      { A.get("focus", "") ~= "", A.get("focus", "") ~= "" and ("Personnage : " .. A.get("focus", "")) or "Choisir le personnage" },
+      { on, on and "Bande ouverte" or "Bande à ouvrir" },
+      { vstate0 == "ok", vstate0 == "ok" and "Vidéo envoyée" or "Vidéo : —" },
+    }
+    local cx = x
+    for _, c in ipairs(checks) do
+      status_dot(cx + 6, y + 8, c[1]); text(c[2], cx + 18, y + 1, c[1] and COL.text or COL.muted, 2)
+      gfx.setfont(2); cx = cx + 18 + gfx.measurestr(c[2]) + 22
+    end
+    y = y + 30
+  end
   local port = P.web_port()
   local p
   y, p = action_row(x, y, w, "Bande rythmo", port and ("Sur la tablette (même Wi-Fi) : " .. (tablet_url or "adresse de cet ordinateur, port " .. port) .. "") or "L'interface web de REAPER n'est pas activée : Accueil › Installer / réparer.",
@@ -740,7 +1017,24 @@ local function page_rec(x, y, w)
   else
     wrap("Aucune réplique" .. (focus ~= "" and (" pour " .. focus) or "") .. " : créez-les dans la page « Répliques ».", x + 16, y + 30, w - 32, COL.muted, 2)
   end
-  y = y + 98
+  y = y + 92
+  -- prises de la réplique
+  if i then
+    local tl = line_takes(lines[i])
+    local cur = 0
+    for k, e in ipairs(tl) do if e.current then cur = k end end
+    if #tl == 0 then text("Pas encore de prise pour cette réplique.", x, y + 5, COL.muted, 2)
+    else
+      local kept = false
+      for _, e in ipairs(tl) do if e.kept then kept = true end end
+      text(string.format("Prise %d / %d%s", math.max(cur, 1), #tl, kept and "  ·  ★ gardée" or ""), x, y + 5, kept and COL.ok or COL.text, 4)
+      local bx = x + 170
+      if button("◀", bx, y, 34, 26, false, false, cur <= 1) then choose_take(tl, cur - 1) end
+      if button("▶", bx + 38, y, 34, 26, false, false, cur >= #tl) then choose_take(tl, cur + 1) end
+      if button("★ Garder cette prise", bx + 80, y, 180, 26, false, false, cur == 0) then choose_take(tl, cur, true) end
+    end
+    y = y + 38
+  end
   -- transport
   local bw = (w - 3 * 8) / 4
   local dis = not i
@@ -784,7 +1078,29 @@ local function page_rec(x, y, w)
   if pr == "off" and A.get("bips", "1") == "1" then text("(sans pré-roll, pas de bips)", cx + 8, y + 7, COL.muted, 2) end
   end
   y = y + 42
-  wrap("Raccourcis : ← / → réplique précédente / suivante · R enregistrer · Espace écouter/arrêter. Chaque passage crée une nouvelle prise sur la piste « Prises - Personnage »." .. (expert() and " En continu, l'enregistrement part de la réplique affichée et enchaîne jusqu'à « Arrêter »." or ""), x, y, w, COL.muted, 2)
+  y = wrap("Raccourcis : ← / → réplique précédente / suivante · R enregistrer · Espace écouter/arrêter. Chaque passage crée une nouvelle prise sur la piste « Prises - Personnage » ; ◀ ▶ pour les comparer, ★ pour garder la meilleure." .. (expert() and " En continu, l'enregistrement part de la réplique affichée et enchaîne jusqu'à « Arrêter »." or ""), x, y, w, COL.muted, 2)
+  if expert() then
+    y = y + 10
+    if button("Exporter une piste par personnage…", x, y, 300, 32) then
+      local n = 0
+      for t = 0, reaper.CountTracks(0) - 1 do
+        local tr = reaper.GetTrack(0, t)
+        local _, nm = reaper.GetTrackName(tr)
+        local want = nm:sub(1, #A.REC_PREFIX) == A.REC_PREFIX
+        reaper.SetTrackSelected(tr, want); if want then n = n + 1 end
+      end
+      if n == 0 then msg = "Aucune piste « Prises - … » dans ce projet."
+      else
+        reaper.GetSetProjectInfo(0, "RENDER_SETTINGS", 2, true)          -- pistes sélectionnées, une par fichier
+        reaper.GetSetProjectInfo(0, "RENDER_BOUNDSFLAG", 1, true)
+        reaper.GetSetProjectInfo_String(0, "RENDER_PATTERN", "$project - $track", true)
+        reaper.Main_OnCommand(40015, 0)
+        msg = string.format("%d piste%s de prises sélectionnée%s : la fenêtre d'export est réglée sur « une piste par fichier » (WAV conseillé pour le mixage).", n, n > 1 and "s" or "", n > 1 and "s" or "")
+      end
+    end
+    y = y + 40
+  end
+  return y + 20
 end
 
 ---------------------------------------------------------------- Aide de chaque page (bouton « ? »)
@@ -845,6 +1161,7 @@ local function draw()
   text("ADR Toolbox", 22, 42, COL.text, 3)
   local y = 84
   for _, pg in ipairs(PAGES) do
+    if not shown(pg) then goto continue end
     if pg.section then
       y = y + 10
       text(pg.section, 22, y + 4, COL.muted, 4)
@@ -921,6 +1238,7 @@ local function loop()
   if V then
     if V.ST.job then V.ST.job() else V.ST.takes = V.selected_takes() end
   end
+  demo_poll()
   if LD and LD.UI.pending then                                 -- mesure du niveau : lancée après l'affichage de « Mesure… »
     if LD.UI.drawn then local f = LD.UI.pending; LD.UI.pending = nil; LD.UI.drawn = false; f() else LD.UI.drawn = true end
   end
@@ -963,6 +1281,7 @@ local function loop()
 end
 
 LAST_TOAST = reaper.GetExtState(SEC, "toast_id")
+if PODSUITE_TEST then PODSUITE_TEST.export_transcript, PODSUITE_TEST.export_chapters, PODSUITE_TEST.msg, PODSUITE_TEST.line_takes, PODSUITE_TEST.choose_take = export_transcript, export_chapters, function() return msg end, line_takes, choose_take end   -- tests automatiques
 reaper.atexit(function() restore_record_mode(); reaper.DeleteExtState(SEC, "hub_alive", false) end)
 find_ripple_cmds()
 if reaper.GetExtState(SEC, "snap_default") ~= "1" then          -- par défaut : items aimantés les uns aux autres
@@ -971,4 +1290,5 @@ end
 vocal_path = find_vocal()
 do local ip, port = A.lan_ip(), P.web_port(); if ip and port then tablet_url = "http://" .. ip .. ":" .. port .. "/doublage.html" end end
 if not DRAW[page] then page = "home" end
+for _, pg in ipairs(PAGES) do if pg.id == page and not shown(pg) then page = "home" end end
 loop()
