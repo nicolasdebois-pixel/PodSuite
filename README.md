@@ -6,7 +6,7 @@ Boîte à outils gratuite pour REAPER (Mac et Windows). Tout se passe sur votre 
 - **Montage** : ripple sur les bords des items.
 - **Vocal level & de-esser** : niveau régulier, sifflantes, plosives, voix trop proche, équilibre tonal.
 - **Export** : contrôle du niveau (LUFS, true peak) avec correction automatique.
-- **Doublage (ADR / bande rythmo)** : à venir.
+- **Doublage (ADR)** : répliques depuis la VO (Whisper + traduction), un SRT ou à la main ; bande rythmo sur tablette ; enregistrement réplique par réplique avec bips.
 
 ## Installation
 La procédure détaillée, pas à pas, est dans [INSTALLATION.md](INSTALLATION.md). En bref :
@@ -20,7 +20,7 @@ La procédure détaillée, pas à pas, est dans [INSTALLATION.md](INSTALLATION.m
 
 ## Utilisation
 Une seule action à retenir : **Podcast & ADR Toolbox**. Elle ouvre une fenêtre avec une page par étape
-(Dérushage, Montage, Voix, Export) d'où l'on lance tous les outils. Mettez-la dans une barre d'outils.
+(Dérushage, Montage, Voix, Export, puis Répliques et Enregistrement pour le doublage) d'où l'on lance tous les outils. Mettez-la dans une barre d'outils.
 
 
 1. Enregistrez le projet REAPER.

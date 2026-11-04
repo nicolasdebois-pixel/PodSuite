@@ -5,13 +5,14 @@ Podcast & ADR Toolbox est une boîte à outils gratuite pour REAPER, sur Mac et 
 - **Dérushage** : transcription de l'audio avec Whisper et montage d'un podcast à partir du texte ;
 - **Montage** : le ripple sur les bords des items ;
 - **Vocal level & de-esser** : une voix plus régulière et plus propre, en un clic ;
-- **Export** : la vérification du niveau (LUFS, true peak) avant d'exporter.
+- **Export** : la vérification du niveau (LUFS, true peak) avant d'exporter ;
+- **Doublage (ADR)** : les répliques, la bande rythmo sur l'écran de la cabine ou une tablette, l'enregistrement réplique par réplique.
 
 L'installation prend une quinzaine de minutes, dont la plupart passées à attendre un téléchargement. Elle se fait **une seule fois** par ordinateur : ensuite, les mises à jour arrivent toutes seules.
 
 > **Ce qu'il faut avant de commencer**
 > - REAPER 7 (ou 6.71 au minimum) : <https://www.reaper.fm>
-> - Une connexion internet, pour l'installation seulement. Ensuite, tout fonctionne hors ligne et l'audio ne quitte jamais l'ordinateur.
+> - Une connexion internet, pour l'installation seulement. Ensuite, tout fonctionne hors ligne et l'audio ne quitte jamais l'ordinateur (seule la traduction automatique des répliques en français, italien ou espagnol passe par internet : le texte, jamais l'audio).
 > - Environ 1 Go d'espace libre, surtout pour le modèle de transcription.
 
 Les menus de REAPER sont indiqués en anglais, comme dans l'installation de base.
@@ -54,7 +55,7 @@ ReaPack est le gestionnaire d'extensions de REAPER, une sorte de « magasin d'ap
 2. Tapez **Toolbox** dans le champ de recherche.
 3. Sélectionnez **Script: Podcast & ADR Toolbox.lua**, puis cliquez sur **Run**.
 
-La fenêtre principale s'ouvre, avec une page par étape : **Accueil**, **Dérushage**, **Montage**, **Voix**, **Export**.
+La fenêtre principale s'ouvre, avec une page par étape : **Accueil**, **Dérushage**, **Montage**, **Voix**, **Export**, puis, pour le doublage, **Répliques** et **Enregistrement**.
 
 > **C'est la seule action à retenir.** Pour l'avoir toujours sous la main :
 > - **un bouton dans la barre d'outils** : clic droit sur la barre d'outils › **Customize toolbar…** › **Add…**, cherchez *Podcast & ADR Toolbox*, puis **OK** ;
@@ -64,7 +65,7 @@ La fenêtre principale s'ouvre, avec une page par étape : **Accueil**, **Dérus
 
 ## Étape 5 — Installer la transcription (une seule fois)
 
-Cette étape n'est nécessaire que pour **transcrire et dérusher** (page *Dérushage*). Les pages **Montage**, **Voix** et **Export** fonctionnent déjà.
+Cette étape est nécessaire pour **transcrire** : dérushage d'un podcast, ou répliques créées depuis la VO pour le doublage. Elle active aussi l'**interface web** qui affiche la page de dérushage et la bande rythmo. Les pages **Montage**, **Voix** et **Export** fonctionnent déjà sans elle.
 
 1. Dans la page **Accueil**, cliquez sur **Installer / réparer**.
 2. Suivez l'assistant. Il :
@@ -81,6 +82,25 @@ Cette étape n'est nécessaire que pour **transcrire et dérusher** (page *Déru
 **Sur Windows**, si l'assistant signale un composant Microsoft manquant, installez *Visual C++ Redistributable (x64)* avec le lien qu'il donne, puis relancez **Installer / réparer**.
 
 Quand c'est terminé, la page **Accueil** affiche deux pastilles vertes.
+
+---
+
+## Doublage : afficher la bande rythmo en cabine
+
+La bande rythmo s'affiche dans un navigateur web. L'image, elle, reste dans la fenêtre vidéo de REAPER (*View › Video*).
+
+**Sur un écran de la cabine branché à l'ordinateur** : glissez la fenêtre vidéo de REAPER sur cet écran, puis, dans la page **Enregistrement**, cliquez sur **Ouvrir sur cet ordinateur** et glissez le navigateur sous la vidéo. Touche **F** : plein écran.
+
+**Sur une tablette (ou un autre ordinateur)** :
+
+1. La tablette et l'ordinateur doivent être sur **le même réseau Wi-Fi**.
+2. Dans la page **Enregistrement**, notez l'adresse affichée sous *Bande rythmo*, du type `http://192.168.1.42:8080/doublage.html`.
+3. Tapez-la dans le navigateur de la tablette (Safari, Chrome…). Touchez **⛶** pour le plein écran.
+4. Si rien ne s'affiche : la première fois, l'ordinateur peut demander s'il faut **autoriser REAPER à accepter les connexions entrantes** : répondez **Autoriser**. Sur un réseau d'école qui isole les appareils, utilisez un petit routeur Wi-Fi dédié, ou le partage de connexion de l'ordinateur.
+
+Les boutons en haut à droite de la bande règlent la vitesse de défilement (**− / +**) et le calage sur l'image (**◂ / ▸ 10 ms**) ; ces réglages sont mémorisés sur la tablette.
+
+**Lire la bande** : le texte défile vers la barre verticale ; on dit chaque syllabe quand elle passe sous la barre. Les trois petits traits avant une réplique correspondent aux trois bips : on parle au quatrième temps. Les signes **RESP** (respiration), **BOUCHE** (bouche fermée), **RIRE** et **SOUPIR** viennent des codes `(r)`, `(b)`, `(rire)` et `(s)` tapés dans le texte des répliques.
 
 ---
 
@@ -108,3 +128,5 @@ Vos réglages et la transcription déjà installée (Whisper, modèle) sont cons
 | Pastille rouge pour la transcription | Page **Accueil** › **Installer / réparer** : l'assistant reprend là où il s'était arrêté. |
 | La page de dérushage ne s'ouvre pas | L'interface web de REAPER n'est pas activée : relancez **Installer / réparer** (étape 5). |
 | Le contrôle du niveau dit que REAPER est trop ancien | Installez REAPER 7. |
+| La bande rythmo ne s'ouvre pas sur la tablette | Même Wi-Fi ? Adresse exacte (avec le port) ? Autorisez REAPER dans le pare-feu de l'ordinateur. |
+| « Transcrire la VO » est grisé | La transcription n'est pas installée : étape 5. |

@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Bande rythmo · Podcast &amp; ADR Toolbox</title>
+<style>
+  html,body{margin:0;height:100%;background:#0d0d0f;overflow:hidden;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    -webkit-user-select:none;user-select:none;touch-action:manipulation}
+  canvas{display:block;width:100vw;height:100vh}
+  #tools{position:fixed;top:6px;right:8px;display:flex;gap:6px;z-index:2}
+  #tools button{background:#1d1d22;color:#d8d8de;border:1px solid #2e2e35;border-radius:8px;font:600 14px system-ui,sans-serif;
+    min-width:38px;height:30px;padding:0 10px;cursor:pointer}
+  #tools button:active{background:#2a2a31}
+  #help{position:fixed;inset:auto 12px 12px auto;max-width:440px;background:#1b1b20;color:#cfcfd6;border:1px solid #2e2e35;
+    border-radius:12px;padding:14px 16px;font:14px/1.5 system-ui,sans-serif;display:none;z-index:3}
+  #help b{color:#fff}
+  #help .k{display:inline-block;min-width:110px;color:#9a9aa2}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="tools">
+  <button id="slower" title="Défilement plus lent">−</button>
+  <button id="faster" title="Défilement plus rapide">+</button>
+  <button id="early" title="Bande plus tôt (−10 ms)">◂ 10 ms</button>
+  <button id="late" title="Bande plus tard (+10 ms)">10 ms ▸</button>
+  <button id="vo" title="Afficher / masquer le texte original">VO</button>
+  <button id="full" title="Plein écran">⛶</button>
+  <button id="hlp" title="Aide">?</button>
+</div>
+<div id="help">
+  <b>Bande rythmo</b> — le texte défile vers la barre ; on dit chaque syllabe quand elle passe sous la barre.<br>
+  <span class="k">Tirets avant la réplique</span>les 3 bips (3, 2, 1) — on parle au 4<sup>e</sup> temps.<br>
+  <span class="k">RESP</span>respiration · <span class="k">BOUCHE</span>bouche fermée (labiale)<br>
+  <span class="k">RIRE</span>rire · <span class="k">SOUPIR</span>soupir<br>
+  <span class="k">− / +</span>vitesse de défilement (aussi ↓ / ↑)<br>
+  <span class="k">◂ / ▸ 10 ms</span>caler la bande sur l'image (aussi ← / →)<br>
+  <span class="k">⛶</span>plein écran (aussi touche F ou double-tap)<br>
+  Réglages mémorisés sur cet appareil.
+</div>
+<script>
+/* Bande rythmo — Podcast & ADR Toolbox.
+   Servie par l'interface web de REAPER ; le script « Toolbox - Serveur doublage » fournit les répliques.
+   Paramètres d'URL : ?speed=320 (px/s) &bar=0.25 (position de la barre, 0-1) &offset=0 (ms) &vo=1 */
+const Q = new URLSearchParams(location.search);
+const SEC = 'TOOLBOX_ADR';
+function lget(k){ try { return localStorage.getItem('rythmo_'+k); } catch(e){ return null; } }
+function lset(k,v){ try { localStorage.setItem('rythmo_'+k, v); } catch(e){} }
+
+let speed  = +(Q.get('speed')  || lget('speed')  || 320);
+let offset = +(Q.get('offset') || lget('offset') || 0);
+let showVO = (Q.get('vo') || lget('vo') || '1') === '1';
+const BAR  = Math.min(0.9, Math.max(0.05, +(Q.get('bar') || 0.25)));
+const HEAD = 44;
+const TOKENS = { r:'RESP', b:'BOUCHE', rire:'RIRE', s:'SOUPIR' };
+
+const cv = document.getElementById('c');
+const ctx = cv.getContext('2d');
+let W = 0, H = 0;
+function resize(){
+  const dpr = window.devicePixelRatio || 1;
+  W = innerWidth; H = innerHeight;
+  cv.width = Math.round(W*dpr); cv.height = Math.round(H*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  for (const c of cues) c.cache = {};
+}
+addEventListener('resize', resize);
+
+/* ---------- Données venant de REAPER ---------- */
+const srv = { state:0, pos:0, t:0, rate:1, ok:false, scriptOk:false };
+let cues = [], lanes = [], version = '', focus = '', curpos = null;
+let disp = 0, lastFrame = performance.now(), toast = '', toastUntil = 0;
+resize();
+
+function dec(s){ try { return decodeURIComponent(s); } catch(e){ return s; } }
+function brighten(hex){
+  let r=parseInt(hex.substr(1,2),16), g=parseInt(hex.substr(3,2),16), b=parseInt(hex.substr(5,2),16);
+  if (isNaN(r)) return '#9ad';
+  const lum = 0.299*r + 0.587*g + 0.114*b;
+  if (lum < 150) { const k = (150-lum)/255 + 0.25; r+=(255-r)*k; g+=(255-g)*k; b+=(255-b)*k; }
+  return `rgb(${r|0},${g|0},${b|0})`;
+}
+// texte → morceaux : mots, et signes de détection (r) (b) (rire) (s)
+function runs(text){
+  const out = []; const re = /\((r|b|rire|s)\)/gi; let last = 0, m;
+  while ((m = re.exec(text))) {
+    const before = text.slice(last, m.index).replace(/\s+$/,' ');
+    if (before.trim()) out.push({ t: before });
+    out.push({ tok: TOKENS[m[1].toLowerCase()] });
+    last = re.lastIndex;
+  }
+  const rest = text.slice(last);
+  if (rest.trim()) out.push({ t: rest });
+  return out.length ? out : [{ t: text }];
+}
+function parse(rawCues, rawLanes){
+  lanes = [];
+  if (rawLanes) for (const rec of rawLanes.split('!')) {
+    const f = rec.split('|'); if (f.length < 2) continue;
+    lanes.push({ name: dec(f[0]), color: '#'+f[1], ink: brighten('#'+f[1]) });
+  }
+  const list = [];
+  if (rawCues) for (const rec of rawCues.split('!')) {
+    const f = rec.split('|'); if (f.length < 6) continue;
+    const c = { pos:+f[0], len:+f[1], row:+f[2], name:dec(f[3]), color:'#'+f[4], text:dec(f[5]), vo:dec(f[6]||'').replace(/\s*\((r|b|rire|s)\)\s*/gi,' ').trim(), cache:{} };
+    c.ink = brighten(c.color); c.runs = runs(c.text);
+    list.push(c);
+  }
+  list.sort((a,b)=>a.pos-b.pos);
+  if (!lanes.length) {
+    const seen = new Map();
+    for (const c of list) if (!seen.has(c.row)) seen.set(c.row, { name:c.name, color:c.color, ink:c.ink });
+    lanes = [...seen.entries()].sort((a,b)=>a[0]-b[0]).map(e=>e[1]);
+    list.forEach(c => c.row = lanes.findIndex(l => l.name === c.name));
+  }
+  cues = list;
+}
+
+async function req(cmd){
+  const r = await fetch('/_/' + cmd, { cache:'no-store' });
+  return (await r.text()).split('\n').map(l=>l.split('\t'));
+}
+async function poll(){
+  const t0 = performance.now();
+  try {
+    const rows = await req(`TRANSPORT;GET/EXTSTATE/${SEC}/version;GET/EXTSTATE/${SEC}/rate;GET/EXTSTATE/${SEC}/focus;GET/EXTSTATE/${SEC}/curpos`);
+    const t1 = performance.now();
+    let v = '';
+    for (const f of rows) {
+      if (f[0] === 'TRANSPORT') { srv.state = +f[1]; srv.pos = +f[2]; srv.t = (t0+t1)/2; }
+      else if (f[0] === 'EXTSTATE' && f[2] === 'version') v = f[3] || '';
+      else if (f[0] === 'EXTSTATE' && f[2] === 'rate') srv.rate = +(f[3]||1) || 1;
+      else if (f[0] === 'EXTSTATE' && f[2] === 'focus') focus = f[3] || '';
+      else if (f[0] === 'EXTSTATE' && f[2] === 'curpos') curpos = f[3] ? +f[3] : null;
+    }
+    srv.ok = true; srv.scriptOk = v !== '';
+    if (v && v !== version) {
+      const r2 = await req(`GET/EXTSTATE/${SEC}/cues;GET/EXTSTATE/${SEC}/lanes`);
+      let rc = '', rl = '';
+      for (const f of r2) if (f[0] === 'EXTSTATE') { if (f[2] === 'cues') rc = f[3] || ''; else if (f[2] === 'lanes') rl = f[3] || ''; }
+      parse(rc, rl);
+      version = v;
+    }
+  } catch(e) { srv.ok = false; }
+  setTimeout(poll, 25);
+}
+
+/* ---------- Horloge lissée ---------- */
+const playing = () => (srv.state & 1) === 1;
+const recording = () => (srv.state & 4) === 4;
+function updateClock(now, dt){
+  const target = srv.pos + (playing() ? (now - srv.t)/1000 * srv.rate : 0);
+  if (!playing()) { disp = target; return; }
+  disp += dt * srv.rate;
+  const err = target - disp;
+  if (Math.abs(err) > 0.15) disp = target; else disp += err * 0.08;
+}
+
+/* ---------- Dessin ---------- */
+function layout(c, fs){
+  const key = fs|0;
+  if (c.cache[key]) return c.cache[key];
+  const parts = []; let tw = 0;
+  for (const r of c.runs) {
+    if (r.tok) { ctx.font = `700 ${Math.max(9, fs*0.36)|0}px system-ui, sans-serif`; const w = ctx.measureText(r.tok).width + 14; parts.push({ tok:r.tok, w }); tw += w + 6; }
+    else { ctx.font = `600 ${fs}px system-ui, sans-serif`; const w = ctx.measureText(r.t).width; parts.push({ t:r.t, w, chars:[...r.t] }); tw += w; }
+  }
+  return (c.cache[key] = { parts, tw: Math.max(1, tw) });
+}
+function drawText(c, x, base, w, fs){
+  const L = layout(c, fs);
+  const sx = Math.max(0.05, w / L.tw);
+  let cx = x;
+  for (const p of L.parts) {
+    if (p.tok) {
+      const pw = p.w * sx, ph = fs * 0.62;
+      ctx.fillStyle = c.ink; ctx.globalAlpha *= 0.9;
+      roundRect(cx + 3*sx, base - fs*0.62, Math.max(6, pw), ph, 5); ctx.fill();
+      ctx.globalAlpha /= 0.9;
+      ctx.fillStyle = '#111';
+      ctx.font = `700 ${Math.max(9, fs*0.36)|0}px system-ui, sans-serif`;
+      ctx.save(); ctx.translate(cx + 3*sx + 7*sx, base - fs*0.18); ctx.scale(sx, 1); ctx.fillText(p.tok, 0, 0); ctx.restore();
+      cx += (p.w + 6) * sx;
+    } else {
+      ctx.fillStyle = '#f6f6f6'; ctx.font = `600 ${fs}px system-ui, sans-serif`;
+      ctx.save(); ctx.translate(cx, base); ctx.scale(sx, 1); ctx.fillText(p.t, 0, 0); ctx.restore();
+      cx += p.w * sx;
+    }
+  }
+}
+function roundRect(x, y, w, h, r){
+  ctx.beginPath(); ctx.moveTo(x+r, y); ctx.arcTo(x+w, y, x+w, y+h, r); ctx.arcTo(x+w, y+h, x, y+h, r);
+  ctx.arcTo(x, y+h, x, y, r); ctx.arcTo(x, y, x+w, y, r); ctx.closePath();
+}
+function drawCue(c, x0, w, y, lh, fs, alpha){
+  ctx.globalAlpha = alpha;
+  ctx.strokeStyle = c.ink; ctx.fillStyle = c.ink; ctx.lineWidth = 3;
+  const uy = y + lh*0.86;
+  ctx.beginPath();
+  ctx.moveTo(x0, y + lh*0.12); ctx.lineTo(x0, uy); ctx.lineTo(x0 + w, uy); ctx.lineTo(x0 + w, uy - lh*0.12);
+  ctx.stroke();
+  if (showVO && c.vo) {
+    ctx.fillStyle = '#8b8b94'; ctx.font = `500 ${Math.max(10, lh*0.12)|0}px system-ui, sans-serif`;
+    ctx.save(); ctx.beginPath(); ctx.rect(x0, y, Math.max(4, w), lh); ctx.clip();
+    ctx.fillText(c.vo, x0 + 8, y + lh*0.24); ctx.restore();
+  }
+  drawText(c, x0 + 4, y + lh*0.68, Math.max(4, w - 8), fs);
+  ctx.globalAlpha = 1;
+}
+function fmt(t){
+  const s = Math.max(0,t), h = Math.floor(s/3600), m = Math.floor(s/60)%60, sec = Math.floor(s)%60, d = Math.floor(s*10)%10;
+  return `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}.${d}`;
+}
+function draw(t){
+  ctx.fillStyle = '#0d0d0f'; ctx.fillRect(0,0,W,H);
+  ctx.textBaseline = 'alphabetic';
+  const rec = recording();
+  // en-tête
+  ctx.font = '500 16px system-ui, sans-serif';
+  ctx.fillStyle = '#9a9aa2'; ctx.fillText(fmt(t), 14, 28);
+  const st = !srv.ok ? ['REAPER NON CONNECTÉ', '#ff9f0a'] : rec ? ['● ENREGISTREMENT', '#ff453a'] : playing() ? ['▶ LECTURE', '#30d158'] : ['■ ARRÊT', '#8e8e93'];
+  ctx.fillStyle = st[1]; ctx.font = '700 16px system-ui, sans-serif'; ctx.fillText(st[0], 120, 28);
+  ctx.font = '500 15px system-ui, sans-serif';
+  if (srv.ok && !srv.scriptOk) { ctx.fillStyle = '#ff9f0a'; ctx.fillText('Dans REAPER : page « Enregistrement » de la boîte à outils', 300, 28); }
+  else if (focus) { ctx.fillStyle = '#d8d8de'; ctx.fillText('Personnage : ' + focus.toUpperCase(), 320, 28); }
+  if (srv.rate !== 1) { ctx.fillStyle = '#64d2ff'; ctx.fillText(`× ${srv.rate.toFixed(2)}`, 560, 28); }
+  if (performance.now() < toastUntil) { ctx.fillStyle = '#fff'; ctx.fillText(toast, 660, 28); }
+
+  const n = Math.max(1, lanes.length);
+  const lh = Math.min(240, (H - HEAD) / n);
+  const fs = Math.max(16, lh * 0.40) | 0;
+  const barX = W * BAR;
+  const tMin = t - barX / speed, tMax = t + (W - barX) / speed;
+  const dim = i => focus && lanes[i] && lanes[i].name !== focus;
+
+  for (let i=0;i<n;i++){
+    const y = HEAD + i*lh;
+    ctx.fillStyle = i % 2 ? '#141418' : '#18181d'; ctx.fillRect(0, y, W, lh);
+    if (lanes[i]) {
+      ctx.globalAlpha = dim(i) ? 0.35 : 1;
+      ctx.fillStyle = lanes[i].ink; ctx.fillRect(0, y, 5, lh);
+      ctx.font = `700 ${Math.max(11, lh*0.12)|0}px system-ui, sans-serif`;
+      ctx.fillText(lanes[i].name.toUpperCase(), 12, y + Math.max(14, lh*0.15));
+      ctx.globalAlpha = 1;
+    }
+  }
+  // réplique en cours : le fond s'éclaire
+  for (const c of cues) if (t >= c.pos && t < c.pos + c.len && !dim(c.row)) {
+    ctx.globalAlpha = 0.13; ctx.fillStyle = c.ink; ctx.fillRect(0, HEAD + c.row*lh, W, lh); ctx.globalAlpha = 1;
+  }
+  // bips : 3 traits avant chaque réplique (du personnage enregistré, ou de tous)
+  for (const c of cues){
+    if (dim(c.row) || c.pos + 0 < tMin || c.pos - 3 > tMax) continue;
+    const y = HEAD + c.row*lh;
+    for (let k = 3; k >= 1; k--) {
+      const x = barX + (c.pos - k - t) * speed;
+      ctx.fillStyle = c.ink; ctx.globalAlpha = x < barX ? 0.25 : 0.9;
+      ctx.fillRect(x - 2, y + lh*0.80, 4, lh*0.16);
+    }
+    ctx.globalAlpha = 1;
+  }
+  for (const c of cues){
+    if (c.pos + c.len < tMin || c.pos > tMax) continue;
+    const x0 = barX + (c.pos - t) * speed, w = c.len * speed, y = HEAD + c.row*lh;
+    const a = dim(c.row) ? 0.3 : 1;
+    ctx.save(); ctx.beginPath(); ctx.rect(0, y, barX, lh); ctx.clip(); drawCue(c, x0, w, y, lh, fs, a * 0.3); ctx.restore();
+    ctx.save(); ctx.beginPath(); ctx.rect(barX, y, W - barX, lh); ctx.clip(); drawCue(c, x0, w, y, lh, fs, a); ctx.restore();
+  }
+  // décompte 3-2-1 avant la prochaine réplique du personnage
+  if (playing()) {
+    const next = cues.find(c => !dim(c.row) && c.pos > t && c.pos - t <= 3);
+    if (next) {
+      const k = Math.ceil(next.pos - t);
+      const y = HEAD + next.row*lh;
+      ctx.fillStyle = next.ink; ctx.globalAlpha = 0.9;
+      ctx.font = `800 ${Math.min(lh*0.7, 120)|0}px system-ui, sans-serif`;
+      ctx.textAlign = 'right'; ctx.fillText(String(k), barX - 16, y + lh*0.72); ctx.textAlign = 'left';
+      ctx.globalAlpha = 1;
+    }
+  }
+  if (!cues.length && srv.scriptOk) {
+    ctx.fillStyle = '#6e6e76'; ctx.font = '500 17px system-ui, sans-serif';
+    ctx.fillText('Aucune réplique pour l’instant (page « Répliques » de la boîte à outils).', 20, HEAD + 40);
+  }
+  // barre de synchro
+  ctx.fillStyle = rec ? '#ff453a' : '#ffffff';
+  ctx.fillRect(barX - 1.5, HEAD, 3, H - HEAD);
+  ctx.beginPath(); ctx.moveTo(barX-10, HEAD); ctx.lineTo(barX+10, HEAD); ctx.lineTo(barX, HEAD+11); ctx.fill();
+}
+function frame(now){
+  const dt = Math.min(0.1, (now - lastFrame)/1000); lastFrame = now;
+  updateClock(now, dt);
+  draw(disp + offset/1000);
+  requestAnimationFrame(frame);
+}
+
+/* ---------- Commandes ---------- */
+function say(s){ toast = s; toastUntil = performance.now() + 1500; }
+function fullscreen(){
+  const d = document, e = d.documentElement;
+  if (d.fullscreenElement || d.webkitFullscreenElement) (d.exitFullscreen || d.webkitExitFullscreen)?.call(d);
+  else (e.requestFullscreen || e.webkitRequestFullscreen)?.call(e);
+}
+function setSpeed(v){ speed = Math.min(1500, Math.max(60, v)); lset('speed', speed); say(`Vitesse ${speed} px/s`); for (const c of cues) c.cache = {}; }
+function setOffset(v){ offset = v; lset('offset', offset); say(`Décalage ${offset} ms`); }
+const $ = id => document.getElementById(id);
+$('slower').onclick = () => setSpeed(speed - 20);
+$('faster').onclick = () => setSpeed(speed + 20);
+$('early').onclick  = () => setOffset(offset - 10);
+$('late').onclick   = () => setOffset(offset + 10);
+$('vo').onclick     = () => { showVO = !showVO; lset('vo', showVO ? '1' : '0'); say(showVO ? 'Texte original affiché' : 'Texte original masqué'); };
+$('full').onclick   = fullscreen;
+$('hlp').onclick    = () => { const h = $('help'); h.style.display = h.style.display === 'block' ? 'none' : 'block'; };
+addEventListener('keydown', e => {
+  if (e.key === 'ArrowUp') setSpeed(speed + 20);
+  else if (e.key === 'ArrowDown') setSpeed(speed - 20);
+  else if (e.key === 'ArrowRight') setOffset(offset + 10);
+  else if (e.key === 'ArrowLeft') setOffset(offset - 10);
+  else if (e.key === 'f' || e.key === 'F') fullscreen();
+  else return;
+  e.preventDefault();
+});
+cv.addEventListener('dblclick', fullscreen);
+poll();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

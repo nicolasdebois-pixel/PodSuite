@@ -2,9 +2,9 @@
   "name": "Podcast & ADR Toolbox",
   "category": "Toolbox",
   "package": "Podcast & ADR Toolbox",
-  "version": "0.8.1",
+  "version": "0.9.0",
   "author": "Nicolas Debois",
-  "description": "Boîte à outils gratuite pour REAPER : dérushage de podcast par le texte (Whisper en local), traitement de la voix (Vocal level & de-esser), ripple sur les bords des items, contrôle du niveau avant l'export. Une seule action à retenir : « Podcast & ADR Toolbox ».",
+  "description": "Boîte à outils gratuite pour REAPER : dérushage de podcast par le texte (Whisper en local), ripple sur les bords des items, traitement de la voix (Vocal level & de-esser), contrôle du niveau avant l'export, et doublage (ADR) avec bande rythmo sur tablette. Une seule action à retenir : « Podcast & ADR Toolbox ».",
   "files": [
     {
       "path": "Scripts/Podcast & ADR Toolbox.lua",
@@ -62,9 +62,31 @@
     {
       "path": "Effects/Vocal level.jsfx",
       "type": "effect"
+    },
+    {
+      "path": "Scripts/Toolbox_adr.lua"
+    },
+    {
+      "path": "Scripts/Toolbox - Serveur doublage.lua",
+      "main": true
+    },
+    {
+      "path": "Scripts/Toolbox - Transcrire VO.lua",
+      "main": true
+    },
+    {
+      "path": "Scripts/Toolbox - Importer SRT.lua",
+      "main": true
+    },
+    {
+      "path": "www/doublage.html"
     }
   ],
   "changelog": [
-    "Fenêtre principale : le Montage passe avant la Voix (2 · Montage, 3 · Voix), dans l'ordre du travail"
+    "Nouveau : doublage (ADR), pages 5 · Répliques et 6 · Enregistrement de la fenêtre principale",
+    "Répliques depuis la VO avec Whisper (traduction automatique en français, anglais, italien ou espagnol), depuis un fichier SRT, ou à la main",
+    "Personnages en couleur, une piste de prises par personnage, signes de détection (r) (b) (rire) (s)",
+    "Bande rythmo fluide (60 images/s) dans un navigateur : écran de la cabine ou tablette sur le même Wi-Fi, avec décompte 3-2-1",
+    "Enregistrement réplique par réplique : pré-roll, 3 bips, arrêt automatique, boucle, passage à la réplique suivante"
   ]
 }

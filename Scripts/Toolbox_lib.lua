@@ -151,10 +151,11 @@ function P.www_data() return P.www_dir() .. P.SEP .. "podsuite_data.json" end
 
 -- Copie (ou met à jour) la page de dérushage dans reaper_www_root.
 -- ReaPack l'installe à côté des scripts ; dans le zip de développement elle est dans ../www/.
-function P.install_page()
-  local data = P.read_file(P.DIR .. "derushage.html") or P.read_file(P.DIR .. ".." .. P.SEP .. "www" .. P.SEP .. "derushage.html")
+function P.install_page(name)
+  name = name or "derushage.html"
+  local data = P.read_file(P.DIR .. name) or P.read_file(P.DIR .. ".." .. P.SEP .. "www" .. P.SEP .. name)
   if not data then return false end
-  local dst = P.www_dir() .. P.SEP .. "derushage.html"
+  local dst = P.www_dir() .. P.SEP .. name
   if P.read_file(dst) ~= data then return P.write_file(dst, data) end
   return true
 end
