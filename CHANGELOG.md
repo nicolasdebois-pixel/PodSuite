@@ -1,5 +1,8 @@
 # Nouveautés de Podcast & ADR Toolbox
 
+## 0.11.3 — 05/11/2026
+- Les fenêtres de la boîte à outils s'ouvrent au centre de l'écran (celui où se trouve la souris) au lieu du coin inférieur gauche
+
 ## 0.11.2 — 05/11/2026
 - Enregistrement : avec « Répéter avant d'enregistrer », bouton « Bips en répétition » (touche B) pour entendre ou couper les bips pendant les répétitions, même en pleine lecture ; à l'enregistrement, les bips suivent l'option « Bips »
 - Enregistrement : les options passent à la ligne quand la fenêtre est étroite

@@ -35,8 +35,19 @@ local function wrap()
   end
 end
 
+-- centre de l'écran où se trouve la souris (zone utile : sans barre des menus ni Dock / barre des tâches)
+local function centered(w, h)
+  if not reaper.my_getViewport then return end
+  local mx, my = 0, 0
+  if reaper.GetMousePosition then mx, my = reaper.GetMousePosition() end
+  local l, t, r, b = reaper.my_getViewport(0, 0, 0, 0, mx, my, mx, my, true)
+  if not (l and t and r and b) or r - l < 100 then return end
+  local y0, y1 = math.min(t, b), math.max(t, b)      -- sur Mac, le haut peut avoir la plus grande valeur
+  return math.floor((l + r) / 2 - w / 2), math.floor((y0 + y1) / 2 - h / 2)
+end
 function U.init(title, w, h, dock, x, y)
   gfx.ext_retina = 1                                   -- « je sais dessiner en haute résolution »
+  if (dock or 0) == 0 and not x then x, y = centered(w, h) end
   gfx.init(title, w, h, dock or 0, x, y)
   wrap()
 end

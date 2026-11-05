@@ -2,7 +2,7 @@
   "name": "Podcast & ADR Toolbox",
   "category": "Toolbox",
   "package": "Podcast & ADR Toolbox",
-  "version": "0.11.2",
+  "version": "0.11.3",
   "author": "Nicolas Debois",
   "description": "Boîte à outils gratuite pour REAPER : dérushage de podcast par le texte (Whisper en local), ripple sur les bords des items, traitement de la voix (Vocal level & de-esser), contrôle du niveau avant l'export, et doublage (ADR) avec bande rythmo sur tablette. Une seule action à retenir : « Podcast & ADR Toolbox ».",
   "files": [
@@ -95,7 +95,6 @@
     }
   ],
   "changelog": [
-    "Enregistrement : avec « Répéter avant d'enregistrer », bouton « Bips en répétition » (touche B) pour entendre ou couper les bips pendant les répétitions, même en pleine lecture ; à l'enregistrement, les bips suivent l'option « Bips »",
-    "Enregistrement : les options passent à la ligne quand la fenêtre est étroite"
+    "Les fenêtres de la boîte à outils s'ouvrent au centre de l'écran (celui où se trouve la souris) au lieu du coin inférieur gauche"
   ]
 }
