@@ -63,20 +63,22 @@ end
 
 ---------------------------------------------------------------- Ripple de REAPER (actions retrouvées par leur nom)
 local RIPPLE = {}
-local SNAP = {}                          -- toggle = aimantation générale, items = aimantation aux bords des items
+local SNAP = {}                          -- toggle = aimantation générale, items = aux bords des items, grid = à la grille
+local META                               -- fenêtre des métadonnées de rendu (tags ID3)
 local function find_ripple_cmds()
   local ok = true
   for _, k in ipairs({ "off", "track", "all" }) do
     local id = tonumber(reaper.GetExtState(SEC, "ripple_cmd_" .. k))
     if id then RIPPLE[k] = id else ok = false end
   end
-  for _, k in ipairs({ "toggle", "items" }) do
+  for _, k in ipairs({ "toggle", "items", "grid" }) do
     local id = tonumber(reaper.GetExtState(SEC, "snap_cmd_" .. k))
     if id and id > 0 then SNAP[k] = id end
   end
-  if reaper.GetExtState(SEC, "cmd_scan") == "2" and ok then return end
+  META = tonumber(reaper.GetExtState(SEC, "meta_cmd")); if META == 0 then META = nil end
+  if reaper.GetExtState(SEC, "cmd_scan") == "3" and ok then return end
   if not reaper.kbd_getTextFromCmd then return end
-  for id = 1, 45000 do
+  for id = 1, 65000 do
     local okc, name = pcall(reaper.kbd_getTextFromCmd, id, 0)
     if okc and type(name) == "string" and name ~= "" then
       local n = name:lower()
@@ -88,12 +90,21 @@ local function find_ripple_cmds()
       elseif n:find("toggle", 1, true) and n:find("snap", 1, true) and (n:find("item edge", 1, true) or n:find("media item", 1, true))
           and not n:find("grid", 1, true) and not n:find("midi", 1, true) and not SNAP.items then
         SNAP.items = id
+      elseif n:find("toggle", 1, true) and n:find("snap", 1, true) and n:find("grid", 1, true) and not SNAP.grid
+          and not (n:find("midi", 1, true) or n:find("relative", 1, true) or n:find("frame", 1, true) or n:find("line", 1, true)
+            or n:find("show", 1, true) or n:find("visible", 1, true) or n:find("division", 1, true) or n:find("swing", 1, true)) then
+        SNAP.grid = id
+      elseif n:find("metadata", 1, true) and (n:find("render", 1, true) or n:find("project", 1, true))
+          and not (n:find("item", 1, true) or n:find("marker", 1, true) or n:find("take", 1, true) or n:find("region", 1, true)) and not META then
+        META = id
       end
     end
   end
   reaper.SetExtState(SEC, "snap_cmd_toggle", tostring(SNAP.toggle or 0), true)
   reaper.SetExtState(SEC, "snap_cmd_items", tostring(SNAP.items or 0), true)
-  reaper.SetExtState(SEC, "cmd_scan", "2", true)
+  reaper.SetExtState(SEC, "snap_cmd_grid", tostring(SNAP.grid or 0), true)
+  reaper.SetExtState(SEC, "meta_cmd", tostring(META or 0), true)
+  reaper.SetExtState(SEC, "cmd_scan", "3", true)
 end
 local function snap_on()
   return SNAP.toggle and reaper.GetToggleCommandState(SNAP.toggle) == 1
@@ -102,6 +113,8 @@ end
 local function set_snap(on)
   if SNAP.toggle and (reaper.GetToggleCommandState(SNAP.toggle) == 1) ~= on then reaper.Main_OnCommand(SNAP.toggle, 0) end
   if on and SNAP.items and reaper.GetToggleCommandState(SNAP.items) ~= 1 then reaper.Main_OnCommand(SNAP.items, 0) end
+  -- aux bords des items seulement : pas à la grille (sinon les items sautent de division en division)
+  if on and SNAP.grid and reaper.GetToggleCommandState(SNAP.grid) == 1 then reaper.Main_OnCommand(SNAP.grid, 0) end
 end
 local function ripple_mode()
   if RIPPLE.all and reaper.GetToggleCommandState(RIPPLE.all) == 1 then return "all" end
@@ -111,7 +124,7 @@ end
 
 ---------------------------------------------------------------- Interface
 local W, H = 860, 680
-local dock = tonumber(reaper.GetExtState(SEC, "hub_dock")) or 0
+local dock = 0                                               -- fenêtre flottante (trop grande pour être ancrée)
 local U = dofile(dir .. "Toolbox_ui.lua")
 U.init(TITLE, W, H, dock)
 local COL = {
@@ -163,15 +176,15 @@ end
 local PAGES = {
   { id = "home", name = "Accueil" },
   { id = "edit", name = "1 · Dérushage", use = "podcast" },
-  { id = "cut", name = "2 · Montage" },
+  { id = "cut", name = "2 · Édition" },
   { id = "voice", name = "3 · Voix" },
   { id = "export", name = "4 · Export" },
   { section = "DOUBLAGE (ADR)", use = "adr" },
   { id = "lines", name = "5 · Répliques", use = "adr" },
   { id = "rec", name = "6 · Enregistrement", use = "adr" },
 }
-local function usage() local u = reaper.GetExtState(SEC, "usage"); return u == "" and "both" or u end
-local function shown(pg) return not pg.use or usage() == "both" or usage() == pg.use end
+local function usage() return "both" end                     -- toutes les pages sont affichées
+local function shown(pg) return true end
 local page = reaper.GetExtState(SEC, "hub_page"); if page == "" then page = "home" end
 local function expert() return true end                    -- tous les réglages sont toujours affichés
 local msg = ""
@@ -257,15 +270,7 @@ local function demo_poll()
 end
 
 local function page_home(x, y, w)
-  y = header(x, y, w, "Bienvenue", "Tout ce qu'il faut pour monter un podcast dans REAPER, dans l'ordre : on dérushe à partir du texte, on peaufine le montage, on soigne la voix, puis on vérifie le niveau avant d'exporter. Pour le doublage : pages Répliques et Enregistrement.")
-  -- ce que l'étudiant fait : seules les pages utiles sont affichées
-  text("Je fais", x, y + 7, COL.text, 4)
-  local ux = x + 80
-  for _, u in ipairs({ { "podcast", "du podcast" }, { "adr", "du doublage" }, { "both", "les deux" } }) do
-    local uw, uc = chip(u[2], ux, y, nil, usage() == u[1]); if uc then reaper.SetExtState(SEC, "usage", u[1], true) end
-    ux = ux + uw + 6
-  end
-  y = y + 44
+  y = header(x, y, w, "Bienvenue", "Tout ce qu'il faut pour monter un podcast dans REAPER, dans l'ordre : on dérushe à partir du texte, on peaufine le montage avec les outils d'édition, on soigne la voix, puis on vérifie le niveau avant d'exporter. Pour le doublage : pages Répliques et Enregistrement.")
   -- état de l'installation
   local whisper_ok = P.settings_ok()
   local web_ok = P.web_port() ~= nil
@@ -290,7 +295,7 @@ local function page_home(x, y, w)
   local cw = (w - 3 * 12) / 4
   local cards = {
     { "edit", "1 · Dérushage", "Transcrire, barrer les passages à couper dans le texte." },
-    { "cut", "2 · Montage", "Ripple editing et ripple sur les bords des items." },
+    { "cut", "2 · Édition", "Comportement des outils : ripple, bords des items, aimantation." },
     { "voice", "3 · Voix", "Niveau régulier, sifflantes, plosives, équilibre." },
     { "export", "4 · Export", "Vérifier la norme (LUFS, true peak), puis exporter." },
   }
@@ -303,7 +308,7 @@ local function page_home(x, y, w)
     wrap(c[3], cx + 12, y + 42, cw - 24, COL.muted, 2)
     if clicked and over then go(c[1]) end
   end
-  if usage() == "adr" then                                    -- doublage : raccourcis vers les pages du doublage
+  do                                                          -- doublage : les deux pages
     y = y + 132
     for i, c in ipairs({ { "lines", "5 · Répliques", "Depuis la VO, un SRT ou à la main." }, { "rec", "6 · Enregistrement", "Bande rythmo en cabine, prises, bips." } }) do
       local cx = x + (i - 1) * (cw + 12)
@@ -335,7 +340,7 @@ local function page_home(x, y, w)
     end
     y = y + 46
   end
-  y = wrap("Astuce : mettez l'action « Podcast & ADR Toolbox » dans une barre d'outils (clic droit sur la barre › Personnaliser) ; c'est la seule à retenir. Le bouton « Ancrer » en bas à gauche place cette fenêtre dans REAPER.", x, y, w, COL.muted, 2)
+  y = wrap("Astuce : mettez l'action « Podcast & ADR Toolbox » dans une barre d'outils (clic droit sur la barre › Personnaliser) ; c'est la seule à retenir.", x, y, w, COL.muted, 2)
   return y + 20
 end
 
@@ -630,14 +635,15 @@ function set_autostart(on)
 end
 
 local function page_cut(x, y, w)
-  y = header(x, y, w, "Montage", "Le ripple editing fait suivre la suite du montage quand on supprime ou déplace un item. La boîte à outils ajoute le ripple sur les bords, et l'aimantation garde les items collés les uns aux autres.")
+  y = header(x, y, w, "Outils d'édition", "Cette page ne monte rien à votre place : elle règle le comportement des outils d'édition de REAPER. Le ripple editing fait suivre la suite du montage quand on supprime ou déplace un item. La boîte à outils ajoute le ripple sur les bords, et l'aimantation garde les items collés les uns aux autres.")
   -- aimantation
   col(COL.line); gfx.line(x, y, x + w, y)
   text("Aimantation des items (snap)", x, y + 14, COL.text, 5)
   if SNAP.toggle then
     local on = snap_on()
     if button(on and "Activée" or "Désactivée", x + w - 150, y + 12, 150, 30, false, on) then set_snap(not on) end
-    y = wrap("Quand on déplace un item ou qu'on tire un de ses bords, il se colle au bord des items voisins.", x, y + 48, w - 180, COL.muted, 2) + 16
+    y = wrap("Quand on déplace un item ou qu'on tire un de ses bords, il se colle au bord des items voisins. La grille n'aimante pas" ..
+      (SNAP.grid and "." or " : si les items sautent encore de division en division, décochez « Grid » dans Options › Snap/Grid settings."), x, y + 48, w - 180, COL.muted, 2) + 16
   else
     y = wrap("Activez l'aimant de la barre d'outils de REAPER (clic droit dessus pour cocher l'aimantation aux items).", x, y + 48, w, COL.muted, 2) + 16
   end
@@ -666,8 +672,9 @@ local function page_cut(x, y, w)
     else run(own("ripple")); set_autostart(true) end
   end
   local auto = autostart_on()
-  local _, ac = chip((auto and "✓ " or "") .. "Au démarrage de REAPER", x + w - 150 - 236, y + 13, nil, auto)
+  local _, ac = chip((auto and "✓ " or "") .. "Activer au démarrage de REAPER", x, y + 46, nil, auto)
   if ac then set_autostart(not auto) end
+  y = y + 38
   y = wrap("Pendant que vous tirez un bord, les voisins se décalent en direct, de la même valeur : bord droit, tout ce qui suit ; bord gauche, tout ce qui précède. Aucun fondu n'est ajouté. Même portée que le ripple de REAPER (la piste, ou toutes les pistes).", x, y + 48, w - 24, COL.muted, 2) + 10
 end
 
@@ -722,21 +729,56 @@ local function ready_checks(Lm)
   }
 end
 
+-- MP3 CBR 320 kbps, qualité maximale (structure du format « l3pm » de REAPER, d'après l'API Ultraschall)
+local MP3_320 = "bDNwbUABAAAAAAAAAAAAAP////8EAAAAQAEAAAAAAAA="
+local mp3_ready = false
+-- sélectionne les items audibles et place les points d'entrée/sortie (sélection temporelle) autour d'eux
+local function prepare_mp3()
+  local a, b, n = math.huge, -math.huge, 0
+  reaper.PreventUIRefresh(1)
+  reaper.Main_OnCommand(40289, 0)                              -- Item: Unselect all items
+  for t = 0, reaper.CountTracks(0) - 1 do
+    local tr = reaper.GetTrack(0, t)
+    local muted = reaper.GetMediaTrackInfo_Value(tr, "B_MUTE") == 1
+    local par = reaper.GetParentTrack(tr)
+    while par and not muted do muted = reaper.GetMediaTrackInfo_Value(par, "B_MUTE") == 1; par = reaper.GetParentTrack(par) end
+    if not muted then
+      for i = 0, reaper.CountTrackMediaItems(tr) - 1 do
+        local it = reaper.GetTrackMediaItem(tr, i)
+        if reaper.GetMediaItemInfo_Value(it, "B_MUTE") ~= 1 then
+          local p = reaper.GetMediaItemInfo_Value(it, "D_POSITION")
+          local e = p + reaper.GetMediaItemInfo_Value(it, "D_LENGTH")
+          if p < a then a = p end
+          if e > b then b = e end
+          reaper.SetMediaItemSelected(it, true); n = n + 1
+        end
+      end
+    end
+  end
+  reaper.PreventUIRefresh(-1); reaper.UpdateArrange()
+  if n == 0 then return 0 end
+  reaper.GetSet_LoopTimeRange(true, false, a, b, false)
+  reaper.GetSetProjectInfo(0, "RENDER_SETTINGS", 512, true)       -- master, métadonnées intégrées au fichier
+  reaper.GetSetProjectInfo(0, "RENDER_BOUNDSFLAG", 2, true)       -- sélection temporelle
+  reaper.GetSetProjectInfo(0, "RENDER_SRATE", 44100, true)
+  reaper.GetSetProjectInfo(0, "RENDER_CHANNELS", 2, true)
+  reaper.GetSetProjectInfo(0, "RENDER_TAILFLAG", 0, true)
+  reaper.GetSetProjectInfo_String(0, "RENDER_FORMAT", MP3_320, true)
+  reaper.GetSetProjectInfo_String(0, "RENDER_PATTERN", "$project", true)
+  if META then reaper.Main_OnCommand(META, 0) else reaper.Main_OnCommand(40015, 0) end
+  return n
+end
+
 local function page_export(x, y, w)
   local Lm = loud()
   if not Lm then y = header(x, y, w, "Export", "Outil introuvable : mettez la boîte à outils à jour (ReaPack › Synchronize packages)."); return y end
   local S, UI, NORMS = Lm.S, Lm.UI, Lm.NORMS
   text("Export", x, y, COL.text, 3)
-  text(usage() == "adr" and "Mesure le mix du master (film doublé) avant de l'exporter, selon la norme du diffuseur."
-    or "Mesure le mix du master tel qu'il sera exporté, avant d'exporter.", x, y + 30, COL.muted, 2)
+  text("Mesure le mix du master tel qu'il sera exporté, avant d'exporter, selon la norme choisie.", x, y + 30, COL.muted, 2)
   y = y + 60
-  -- normes proposées selon ce que l'on fait (podcast, doublage, les deux)
   local vis = {}
-  for i, N in ipairs(NORMS) do if usage() == "both" or N.use == usage() then vis[#vis + 1] = i end end
-  local okn = false
-  for _, i in ipairs(vis) do if i == S.norm then okn = true end end
-  if not okn then S.norm = vis[1]; Lm.save() end
-  local per = math.min(#vis, 3)
+  for i in ipairs(NORMS) do vis[#vis + 1] = i end
+  local per = math.min(#vis, 4)
   local bw = (w - (per - 1) * 10) / per
   for k, i in ipairs(vis) do
     local col_, row = (k - 1) % per, (k - 1) // per
@@ -745,6 +787,21 @@ local function page_export(x, y, w)
   y = y + ((#vis - 1) // per) * 38
   local N = NORMS[S.norm]
   y = y + 36
+  if N.editable then                                         -- cible du podcast réglable
+    text("Cible", x, y + 7, COL.text, 4)
+    local cx = x + 60
+    if button("−", cx, y, 30, 28) and not UI.busy then Lm.set_podcast_target(N.target - 1) end
+    gfx.setfont(4); col(COL.text); local lab = Lm.num(N.target, 0) .. " LUFS"
+    gfx.x, gfx.y = cx + 38, y + 7; gfx.drawstr(lab)
+    cx = cx + 46 + gfx.measurestr(lab)
+    if button("+", cx, y, 30, 28) and not UI.busy then Lm.set_podcast_target(N.target + 1) end
+    cx = cx + 44
+    for _, v in ipairs({ { -16, "−16 podcast" }, { -14, "−14 Spotify / YouTube" }, { -23, "−23 radio" } }) do
+      local cw2, cc = chip(v[2], cx, y, nil, N.target == v[1]); if cc and not UI.busy then Lm.set_podcast_target(v[1]) end
+      cx = cx + cw2 + 6
+    end
+    y = y + 38
+  end
   local dd = (N.tol % 1 ~= 0) and 1 or 0
   text(string.format("Norme : %s LUFS intégrés (± %s LU) · true peak max %s dBTP", Lm.num(N.target, 0), Lm.num(N.tol, dd), Lm.num(N.tp, 0)), x, y, COL.muted, 2)
   y = y + 26
@@ -793,7 +850,26 @@ local function page_export(x, y, w)
     y = y + 22
   end
   y = y + 8
-  if button("Exporter : " .. N.name, x, y, 340, 36, allok, false) then
+  if N.use == "podcast" then
+    -- podcast : MP3 320 kbps, du début du premier item à la fin du dernier, tags ID3 remplis avant l'export
+    if button("1. Préparer l'export MP3 et remplir les tags", x, y, 380, 36, allok and not mp3_ready, mp3_ready) then
+      local n = prepare_mp3()
+      if n == 0 then msg = "Aucun item audible à exporter."
+      else
+        mp3_ready = true
+        msg = "Prêt : MP3 320 kbps, 44,1 kHz, du début du premier item à la fin du dernier (" .. n .. " items sélectionnés). " ..
+          (META and "Remplissez les tags (titre, artiste, album, image…) dans la fenêtre des métadonnées, fermez-la, puis cliquez sur « 2. Exporter »."
+            or "Cliquez sur « Metadata… » dans la fenêtre d'export pour remplir les tags (titre, artiste…), puis sur « Render ».")
+      end
+    end
+    if button("2. Exporter", x + 392, y, 160, 36, mp3_ready, false) and mp3_ready then
+      reaper.Main_OnCommand(41824, 0)                          -- File: Render project, using the most recent render settings
+      mp3_ready = false
+      msg = "Export lancé : le MP3 est créé à côté du projet (dossier de rendu de REAPER), avec ses tags."
+    end
+    y = y + 44
+    wrap("Pas de normalisation à l'export : le niveau est déjà réglé par la mesure et la correction ci-dessus.", x, y, w, COL.muted, 2)
+  elseif button("Exporter : " .. N.name, x, y, 340, 36, allok, false) then
     -- réglages de rendu prêts : tout le projet, 44,1 kHz, nom du fichier ; le format (MP3, WAV…) reste au choix
     reaper.GetSetProjectInfo(0, "RENDER_SETTINGS", 0, true)
     reaper.GetSetProjectInfo(0, "RENDER_BOUNDSFLAG", 1, true)
@@ -1119,7 +1195,7 @@ end
 ---------------------------------------------------------------- Aide de chaque page (bouton « ? »)
 local HELP = {
   home = { "Bienvenue", {
-    "Cette fenêtre réunit tous les outils, dans l'ordre du travail : 1 Dérushage, 2 Montage, 3 Voix, 4 Export. Le doublage a ses deux pages : 5 Répliques et 6 Enregistrement.",
+    "Cette fenêtre réunit tous les outils, dans l'ordre du travail : 1 Dérushage, 2 Édition, 3 Voix, 4 Export. Le doublage a ses deux pages : 5 Répliques et 6 Enregistrement.",
     "Pastille rouge dans « Installation » : cliquez sur « Installer / réparer » (une seule fois par ordinateur).",
     "Ctrl/Cmd+Z annule, la barre d'espace lance ou arrête la lecture, même quand cette fenêtre est active." } },
   edit = { "Dérushage", {
@@ -1127,7 +1203,7 @@ local HELP = {
     "La page de dérushage s'ouvre dans le navigateur : barrez les mots à couper. REAPER reconstruit le montage sur des pistes « ✂ » ; les rushes ne sont jamais modifiés.",
     "Le clicker : un clic pendant l'enregistrement = « prise ratée ». Calibrez-le une fois : PodSuite repère ensuite les clics et propose les coupes.",
     "Exports (transcription, sous-titres, chapitres) : boutons en bas de la page." } },
-  cut = { "Montage", {
+  cut = { "Outils d'édition", {
     "Aimantation : les items se collent aux bords de leurs voisins quand on les déplace.",
     "Ripple sur les bords : quand on raccourcit ou rallonge un item par un bord, ce qui suit (bord droit) ou ce qui précède (bord gauche) se décale d'autant, en direct.",
     "Ripple editing de REAPER (par piste ou toutes les pistes) : pour les suppressions et déplacements d'items." } },
@@ -1136,7 +1212,7 @@ local HELP = {
     "Chaque traitement a trois intensités. Commencez en Moyen, écoutez au casque, puis ajustez : si la voix devient étouffée ou creuse, c'est trop fort.",
     "« Bypass » compare avec le son d'origine. Les courbes dessinées sur les items montrent ce qui a été fait." } },
   export = { "Export", {
-    "LUFS : le volume perçu, mesuré sur tout le fichier. Podcast : −16 LUFS ; Spotify : −14 LUFS (± 1). Doublage : télévision −23 LUFS (EBU R128, ± 0,5), Netflix −27 LUFS sur les dialogues (± 2, true peak −2 dBTP), web −14 LUFS.",
+    "LUFS : le volume perçu, mesuré sur tout le fichier. Podcast : −16 LUFS par défaut (± 1), réglable : −14 pour Spotify ou YouTube, −23 pour la radio. Doublage : télévision −23 LUFS (EBU R128, ± 0,5), Netflix −27 LUFS sur les dialogues (± 2, true peak −2 dBTP), web −14 LUFS.",
     "Les normes proposées dépendent du choix « Je fais du podcast / du doublage / les deux » dans l'Accueil.",
     "True peak : la crête réelle du son, entre les échantillons. Elle ne doit pas dépasser −1 dBTP, sinon le son sature après compression MP3.",
     "« Corriger automatiquement » ajoute un limiteur en fin de chaîne du master et règle le gain. Si le limiteur doit trop travailler, régularisez d'abord la voix." } },
@@ -1192,13 +1268,8 @@ local function draw()
     ::continue::
   end
   gfx.setfont(2); col(COL.muted)
-  gfx.x, gfx.y = 18, h - 74; gfx.drawstr("Version " .. P.VERSION .. " · Nouveautés")
-  if clicked and hit(16, h - 78, sw - 32, 20) then open_url("https://github.com/nicolasdebois-pixel/PodSuite/blob/main/CHANGELOG.md") end
-  local d = gfx.dock(-1) & 1 == 1
-  if button(d and "Détacher" or "Ancrer", 16, h - 50, sw - 32, 30) then
-    gfx.dock(d and 0 or 1)
-    reaper.SetExtState(SEC, "hub_dock", tostring(gfx.dock(-1)), true)
-  end
+  gfx.x, gfx.y = 18, h - 34; gfx.drawstr("Version " .. P.VERSION .. " · Nouveautés")
+  if clicked and hit(16, h - 38, sw - 32, 20) then open_url("https://github.com/nicolasdebois-pixel/PodSuite/blob/main/CHANGELOG.md") end
   local cx, cw = sw + 32, math.max(300, w - sw - 64)
   if help_open then help_overlay(cx, 26, cw, h - 40)
   else
@@ -1292,8 +1363,9 @@ LAST_TOAST = reaper.GetExtState(SEC, "toast_id")
 if PODSUITE_TEST then PODSUITE_TEST.export_transcript, PODSUITE_TEST.export_chapters, PODSUITE_TEST.msg, PODSUITE_TEST.line_takes, PODSUITE_TEST.choose_take = export_transcript, export_chapters, function() return msg end, line_takes, choose_take end   -- tests automatiques
 reaper.atexit(function() restore_record_mode(); reaper.DeleteExtState(SEC, "hub_alive", false) end)
 find_ripple_cmds()
-if reaper.GetExtState(SEC, "snap_default") ~= "1" then          -- par défaut : items aimantés les uns aux autres
-  set_snap(true); reaper.SetExtState(SEC, "snap_default", "1", true)
+if reaper.GetExtState(SEC, "snap_default") ~= "2" then          -- par défaut : items aimantés les uns aux autres, pas à la grille
+  if reaper.GetExtState(SEC, "snap_default") == "" or snap_on() then set_snap(true) end
+  reaper.SetExtState(SEC, "snap_default", "2", true)
 end
 vocal_path = find_vocal()
 do local ip, port = A.lan_ip(), P.web_port(); if ip and port then tablet_url = "http://" .. ip .. ":" .. port .. "/doublage.html" end end

@@ -11,7 +11,7 @@ Notez ✓ / ✗ et ce qui s'affiche en cas de problème.
 
 ## Podcast
 5. Dérushage : transcription d'un extrait de 2 minutes, page de dérushage ouverte, un passage barré → coupé dans REAPER.
-6. Montage : ripple sur les bords activé ; tirer un bord droit puis un bord gauche : les voisins suivent en direct, sans fondu.
+6. Édition : ripple sur les bords activé ; tirer un bord droit puis un bord gauche : les voisins suivent en direct, sans fondu.
 7. Fermer et rouvrir REAPER : le ripple sur les bords est toujours actif (case « Au démarrage de REAPER »).
 8. Voix : Vocal level sur un item, puis « Annuler l'analyse » pendant l'analyse : rien n'est modifié.
 9. Export : Mesurer, puis Corriger automatiquement : verdict conforme ; liste « Prêt à exporter ? » au vert ; « Exporter pour… » ouvre la fenêtre de rendu.

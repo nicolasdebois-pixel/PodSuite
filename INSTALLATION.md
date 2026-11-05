@@ -3,9 +3,9 @@
 Podcast & ADR Toolbox est une boîte à outils gratuite pour REAPER, sur Mac et sur Windows. Elle réunit :
 
 - **Dérushage** : transcription de l'audio avec Whisper et montage d'un podcast à partir du texte ;
-- **Montage** : le ripple sur les bords des items ;
+- **Édition** : le ripple sur les bords des items et l'aimantation ;
 - **Vocal level & de-esser** : une voix plus régulière et plus propre, en un clic ;
-- **Export** : la vérification du niveau (LUFS, true peak) avant d'exporter ;
+- **Export** : la vérification du niveau (LUFS, true peak), puis l'export en MP3 320 kbps avec les tags ;
 - **Doublage (ADR)** : les répliques, la bande rythmo sur l'écran de la cabine ou une tablette, l'enregistrement réplique par réplique.
 
 L'installation prend une quinzaine de minutes, dont la plupart passées à attendre un téléchargement. Elle se fait **une seule fois** par ordinateur : ensuite, les mises à jour arrivent toutes seules.
@@ -55,19 +55,17 @@ ReaPack est le gestionnaire d'extensions de REAPER, une sorte de « magasin d'ap
 2. Tapez **Toolbox** dans le champ de recherche.
 3. Sélectionnez **Script: Podcast & ADR Toolbox.lua**, puis cliquez sur **Run**.
 
-La fenêtre principale s'ouvre, avec une page par étape : **Accueil**, **Dérushage**, **Montage**, **Voix**, **Export**, puis, pour le doublage, **Répliques** et **Enregistrement**.
+La fenêtre principale s'ouvre, avec une page par étape : **Accueil**, **Dérushage**, **Édition**, **Voix**, **Export**, puis, pour le doublage, **Répliques** et **Enregistrement**.
 
 > **C'est la seule action à retenir.** Pour l'avoir toujours sous la main :
 > - **un bouton dans la barre d'outils** : clic droit sur la barre d'outils › **Customize toolbar…** › **Add…**, cherchez *Podcast & ADR Toolbox*, puis **OK** ;
 > - **ou un raccourci clavier** : dans l'*Action list*, sélectionnez l'action, puis **Add…** sous *Shortcuts for selected action*.
 >
-> Le bouton **Ancrer**, en bas à gauche de la fenêtre, la range dans l'interface de REAPER.
->
 > Le bouton **?** en haut à droite de chaque page affiche l'aide de la page.
 
 ## Étape 5 — Installer la transcription (une seule fois)
 
-Cette étape est nécessaire pour **transcrire** : dérushage d'un podcast, ou répliques créées depuis la VO pour le doublage. Elle active aussi l'**interface web** qui affiche la page de dérushage et la bande rythmo. Les pages **Montage**, **Voix** et **Export** fonctionnent déjà sans elle.
+Cette étape est nécessaire pour **transcrire** : dérushage d'un podcast, ou répliques créées depuis la VO pour le doublage. Elle active aussi l'**interface web** qui affiche la page de dérushage et la bande rythmo. Les pages **Édition**, **Voix** et **Export** fonctionnent déjà sans elle.
 
 1. Dans la page **Accueil**, cliquez sur **Installer / réparer**.
 2. Suivez l'assistant. Il :

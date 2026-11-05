@@ -1,5 +1,13 @@
 # Nouveautés de Podcast & ADR Toolbox
 
+## 0.11.0 — 05/11/2026
+- Toutes les pages sont affichées (plus de choix « Je fais du podcast / du doublage / les deux ») et toutes les normes d'export
+- Export : la norme Spotify est retirée ; la cible du Podcast se règle (−16 LUFS par défaut, −14 ou −23 en un clic, ou au LU près)
+- Export podcast : MP3 320 kbps, 44,1 kHz, du début du premier item audible à la fin du dernier (items sélectionnés, points d'entrée/sortie posés), métadonnées intégrées et fenêtre des tags ID3 ouverte avant l'export
+- « 2 · Montage » devient « 2 · Édition » (la page règle les outils d'édition, elle ne monte rien)
+- Aimantation : aux bords des items seulement, plus à la grille
+- Plus de bouton « Ancrer » : la fenêtre reste flottante
+
 ## 0.10.8 — 05/11/2026
 - Mac : Whisper démarre de nouveau depuis REAPER (la commande est passée par un petit script : REAPER cassait les guillemets introduits en 0.10.3, d'où un test d'installation ou une transcription bloqués)
 - Mac : le journal de Whisper indique son code de sortie

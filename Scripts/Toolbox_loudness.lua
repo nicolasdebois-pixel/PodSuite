@@ -1,7 +1,7 @@
 -- Toolbox_loudness.lua — moteur du contrôle du niveau d'export (mesure, diagnostic, correction).
 -- Utilisé par la page « Export » de la fenêtre principale et par la fenêtre « Contrôle du niveau ».
 -- Mesure le mix (bus master) AVANT l'export : loudness intégrée (LUFS), true peak, écart de volume (LRA),
--- compare à une norme (Podcast -16 LUFS, Spotify -14 LUFS), propose des pistes de correction
+-- compare à une norme (Podcast -16 LUFS réglable, TV, Netflix, web), propose des pistes de correction
 -- et peut corriger automatiquement avec un limiteur true peak placé en fin de chaîne du master.
 -- Nécessite REAPER 6.71 ou plus récent (mesure par « dry run render »).
 
@@ -12,9 +12,8 @@ local scriptdir = (debug.getinfo(1, "S").source:match("^@(.*[/\\])")) or ""
 
 -- use : « podcast » ou « adr » (la fenêtre principale n'affiche que les normes utiles) ; short : nom du fichier exporté
 local NORMS = {
-  { name = "Podcast (Apple, autres)", short = "Podcast", target = -16, tol = 1, tp = -1, srate = 44100, use = "podcast" },
-  { name = "Podcast (Spotify)", short = "Spotify", target = -14, tol = 1, tp = -1, srate = 44100, use = "podcast" },
-  { name = "Télévision (EBU R128)", short = "TV R128", target = -23, tol = 0.5, tp = -1, srate = 48000, use = "adr" },
+  { name = "Podcast", short = "Podcast", target = -16, tol = 1, tp = -1, srate = 44100, use = "podcast", editable = true },
+  { name = "TV (EBU R128)", short = "TV R128", target = -23, tol = 0.5, tp = -1, srate = 48000, use = "adr" },
   { name = "Netflix (dialogues)", short = "Netflix", target = -27, tol = 2, tp = -2, srate = 48000, use = "adr",
     note = "Netflix mesure seulement les passages dialogués (« dialog-gated ») ; REAPER mesure tout le programme : la valeur affichée est une approximation, à confirmer avec un mesureur de dialogues avant livraison." },
   { name = "Web / YouTube", short = "Web", target = -14, tol = 1, tp = -1, srate = 48000, use = "adr" },
@@ -23,7 +22,17 @@ local LIMDESC, LIMDESC_OLD = "Toolbox limiter", "PodSuite limiter"
 local LIMFILE = "Toolbox limiter.jsfx"
 local LRA_HIGH = 10                       -- au-delà, les écarts de volume se remarquent dans un podcast
 
+-- cible du podcast modifiable (−16 LUFS par défaut ; −14 ou −23 si le diffuseur le demande)
+NORMS[1].target = tonumber(reaper.GetExtState(SECTION, "podcast_target")) or -16
+local function set_podcast_target(v)
+  v = math.max(-30, math.min(-10, math.floor(v + 0.5)))
+  NORMS[1].target = v; reaper.SetExtState(SECTION, "podcast_target", tostring(v), true)
+end
 local S = { norm = tonumber(reaper.GetExtState(SECTION, "norm")) or 1, scope = reaper.GetExtState(SECTION, "scope") }
+if reaper.GetExtState(SECTION, "norms_v2") ~= "1" then          -- la norme Spotify (2e) a été retirée : on décale l'ancien choix
+  if S.norm == 2 then S.norm = 1; set_podcast_target(-14) elseif S.norm > 2 then S.norm = S.norm - 1 end
+  reaper.SetExtState(SECTION, "norm", tostring(S.norm), true); reaper.SetExtState(SECTION, "norms_v2", "1", true)
+end
 if not NORMS[S.norm] then S.norm = 1 end
 if S.scope ~= "sel" then S.scope = "all" end
 local function save() reaper.SetExtState(SECTION, "norm", tostring(S.norm), true); reaper.SetExtState(SECTION, "scope", S.scope, true) end
@@ -307,7 +316,7 @@ end
 
 
 return {
-  TITLE = TITLE, NORMS = NORMS, S = S, save = save, num = num, sgn = sgn, LRA_HIGH = LRA_HIGH,
+  TITLE = TITLE, NORMS = NORMS, S = S, save = save, set_podcast_target = set_podcast_target, num = num, sgn = sgn, LRA_HIGH = LRA_HIGH,
   UI = UI, set_msg = set_msg, measure = measure, verdict = verdict, suggestions = suggestions,
   do_measure = do_measure, do_correct = do_correct, remove_lim = remove_lim, lim_gain = lim_gain, has_timesel = has_timesel,
 }
