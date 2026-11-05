@@ -2,7 +2,7 @@
   "name": "Podcast & ADR Toolbox",
   "category": "Toolbox",
   "package": "Podcast & ADR Toolbox",
-  "version": "0.10.2",
+  "version": "0.10.3",
   "author": "Nicolas Debois",
   "description": "Boîte à outils gratuite pour REAPER : dérushage de podcast par le texte (Whisper en local), ripple sur les bords des items, traitement de la voix (Vocal level & de-esser), contrôle du niveau avant l'export, et doublage (ADR) avec bande rythmo sur tablette. Une seule action à retenir : « Podcast & ADR Toolbox ».",
   "files": [
@@ -95,6 +95,8 @@
     }
   ],
   "changelog": [
-    "Correction : « Exporter une piste par personnage » règle bien la source d'export sur « Stems (selected tracks) » (un fichier par personnage) au lieu du master"
+    "Windows : Whisper s'installe de nouveau (la dernière version de whisper.cpp ne publie plus de version Windows ; la boîte à outils en garde une copie)",
+    "Windows : la transcription fonctionne avec des accents dans le nom d'utilisateur ou du dossier du projet",
+    "Transcription : la fenêtre de progression indique ce que fait Whisper (chargement du modèle, écoute, calcul en cours) et, en cas d'échec, où trouver le journal"
   ]
 }

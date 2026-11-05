@@ -1,0 +1,30 @@
+# Copie la version Windows officielle de whisper.cpp dans la version « whisper-windows » de ce dépôt :
+# whisper.cpp ne publie plus de version Windows toute faite depuis la 1.9.3, et le lien « latest » ne marche plus.
+# L'installation de la boîte à outils télécharge cette copie (puis l'original en secours).
+name: Whisper pour Windows
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version de whisper.cpp (avec version Windows publiée)"
+        default: "v1.9.2"
+permissions:
+  contents: write
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Télécharger et vérifier
+        run: |
+          V="${{ github.event.inputs.version || 'v1.9.2' }}"
+          curl -L --fail -sS -o whisper-bin-x64.zip "https://github.com/ggml-org/whisper.cpp/releases/download/$V/whisper-bin-x64.zip"
+          unzip -l whisper-bin-x64.zip | grep -q "Release/whisper-cli.exe"
+          sha256sum whisper-bin-x64.zip
+      - name: Publier dans la version « whisper-windows »
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view whisper-windows -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
+            gh release create whisper-windows -R "$GITHUB_REPOSITORY" --title "Whisper pour Windows" \
+              --notes "Copie de la version Windows officielle de whisper.cpp, téléchargée automatiquement par l'installation de Podcast & ADR Toolbox."
+          gh release upload whisper-windows whisper-bin-x64.zip -R "$GITHUB_REPOSITORY" --clobber

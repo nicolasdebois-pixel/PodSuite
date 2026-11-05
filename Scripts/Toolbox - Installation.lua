@@ -7,7 +7,10 @@ local P = dofile(dir .. "Toolbox_lib.lua")
 local TITLE = "Podcast & ADR Toolbox — Installation"
 local RES = P.RES
 local HF = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/"
-local WIN_ZIP = "https://github.com/ggml-org/whisper.cpp/releases/latest/download/whisper-bin-x64.zip"
+-- Windows : copie de whisper.cpp 1.9.2 dans ce dépôt (les versions 1.9.3 et suivantes ne publient plus de
+-- version Windows toute faite), puis l'original en secours
+local WIN_ZIPS = { "https://github.com/nicolasdebois-pixel/PodSuite/releases/download/whisper-windows/whisper-bin-x64.zip",
+  "https://github.com/ggml-org/whisper.cpp/releases/download/v1.9.2/whisper-bin-x64.zip" }
 local VCREDIST = "https://aka.ms/vs/17/release/vc_redist.x64.exe"
 local MAC_BIN = "https://github.com/nicolasdebois-pixel/PodSuite/releases/download/whisper-macos/whisper-cli-macos-"
 -- Dossier commun d'une salle de cours : le service informatique y dépose Whisper et le modèle une seule fois
@@ -196,7 +199,9 @@ local function step_whisper()
     set("whisper", "doing", "téléchargement…")
     local zip = RES .. "\\whisper.zip"
     local log = RES .. "\\whisper_dl.log"
-    local ok = run_bg({ "curl.exe -L --fail -sS -o " .. q(zip) .. " " .. q(WIN_ZIP), "tar.exe -xf " .. q(zip) .. " -C " .. q(dest) }, log,
+    local dl = {}
+    for i, u in ipairs(WIN_ZIPS) do dl[i] = "curl.exe -L --fail -sS -o " .. q(zip) .. " " .. q(u) end
+    local ok = run_bg({ "(" .. table.concat(dl, " || ") .. ")", "tar.exe -xf " .. q(zip) .. " -C " .. q(dest) }, log,
       function(t) local mb = file_size(zip) / 1048576; status_line = string.format("Téléchargement de Whisper… %.1f Mo", mb); progress = math.min(0.95, mb / 8) end)
     progress = nil
     os.remove(zip)
@@ -319,13 +324,14 @@ end
 ---------------------------------------------------------------- Étape 6 : test
 local function step_test()
   set("test", "doing", "chargement du modèle…")
-  local wav = RES .. P.SEP .. "test.wav"
+  local tdir = P.whisper_workdir(RES, "test")
+  local wav = tdir .. P.SEP .. "test.wav"
   local w = P.wav_open(wav)
   local s = {}
   for i = 1, 2 * P.SR do s[i] = math.sin(i * 0.05) * 0.001 end
   P.wav_write(w, s, #s); P.wav_close(w)
-  local log = RES .. P.SEP .. "test.log"
-  local ok = run_bg({ q(P.get("whisper")) .. " -m " .. q(P.get("model")) .. " -f " .. q(wav) .. " -l " .. P.get("lang") .. " -t " .. P.get("threads") .. " -np" }, log,
+  local log = tdir .. P.SEP .. "test.log"
+  local ok = run_bg({ P.whisper_cmdline({ "-m", P.whisper_model(), "-f", wav, "-l", P.get("lang"), "-t", P.get("threads"), "-np" }, tdir) }, log,
     function(t) status_line = "Test de Whisper… " .. mmss(t) end)
   if ok then set("test", "ok", "Whisper fonctionne"); return end
   set("test", "fail", "Whisper ne démarre pas")

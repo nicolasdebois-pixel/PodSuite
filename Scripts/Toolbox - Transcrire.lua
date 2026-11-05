@@ -60,9 +60,11 @@ end
 --           et dérive dans ses minutages après un long silence), et COUPÉS À CHAQUE CLIC : d'un seul
 --           tenant, Whisper « nettoie » les reprises et efface la phrase redite après le clic.
 --           Une carte par morceau permet de revenir au temps réel.
-local function chunk_wav(k) return datadir .. P.SEP .. string.format("whisper_input_%02d.wav", k) end
-local function chunk_base(k) return datadir .. P.SEP .. string.format("whisper_%02d", k) end
-local logpath = datadir .. P.SEP .. "whisper.log"
+-- fichiers de travail de Whisper : à côté du projet (sur Windows, dans un dossier sans accent si besoin)
+local wdir = P.whisper_workdir(datadir, projname)
+local function chunk_wav(k) return wdir .. P.SEP .. string.format("whisper_input_%02d.wav", k) end
+local function chunk_base(k) return wdir .. P.SEP .. string.format("whisper_%02d", k) end
+local logpath = wdir .. P.SEP .. "whisper.log"
 local MAXGAP, PAD = 1.0, 0.25            -- silences > 1 s raccourcis, 0,25 s gardés de chaque côté
 local DTW_BIAS = 0.20                    -- retard moyen mesuré des minutages DTW
 
@@ -186,7 +188,7 @@ function write_pass()
       local c = chunks[ci]
       if not wav then
         wav = P.wav_open(chunk_wav(ci))
-        if not wav then cleanup_readers(); ui.close(); P.notify("Impossible d'écrire dans " .. datadir) return end
+        if not wav then cleanup_readers(); ui.close(); P.notify("Impossible d'écrire dans " .. wdir) return end
       end
       local m = c.segs[si]
       local nTot = math.floor(m.len * P.SR + 0.5)
@@ -217,7 +219,6 @@ function write_pass()
 end
 
 ---------------------------------------------------------------- Étape 2 : Whisper
-local function q(s) return '"' .. s .. '"' end
 local function dtw_preset(path)
   local f = (path:match("([^/\\]+)$") or path):lower()
   for _, m in ipairs({ { "large%-v3%-turbo", "large.v3.turbo" }, { "large%-v3", "large.v3" }, { "large%-v2", "large.v2" },
@@ -226,7 +227,7 @@ local function dtw_preset(path)
     if f:find(m[1]) then return m[2] end
   end
 end
-local started, use_dtw
+local started, use_dtw, model_path
 
 -- Whisper est lancé par lots de 20 morceaux (une ligne de commande Windows est limitée en longueur)
 local BATCH = 20
@@ -239,20 +240,18 @@ local function batch_range(b) return (b - 1) * BATCH + 1, math.min(b * BATCH, #c
 function start_whisper(try_dtw)
   os.remove(logpath)
   use_dtw = try_dtw and dtw_preset(P.get("model")) or nil
-  local args = { q(P.get("whisper")), "-m", q(P.get("model")), "-l", P.get("lang"), "-t", P.get("threads"), "-ojf", "-pp" }
+  model_path = model_path or P.whisper_model()
+  local args = { "-m", model_path, "-l", P.get("lang"), "-t", P.get("threads"), "-ojf", "-pp" }
   local k0, k1 = batch_range(batch)
   for k = k0, k1 do
     os.remove(chunk_base(k) .. ".json")
-    args[#args + 1] = "-f"; args[#args + 1] = q(chunk_wav(k))
-    args[#args + 1] = "-of"; args[#args + 1] = q(chunk_base(k))
+    args[#args + 1] = "-f"; args[#args + 1] = chunk_wav(k)
+    args[#args + 1] = "-of"; args[#args + 1] = chunk_base(k)
   end
   if use_dtw then args[#args + 1] = "-dtw"; args[#args + 1] = use_dtw; args[#args + 1] = "-nfa" end
-  local prompt = (VERBATIM .. " " .. P.get("prompt")):gsub('"', ""):gsub("'", "’")
-  args[#args + 1] = "--prompt"; args[#args + 1] = q(prompt)
-  local cmd = table.concat(args, " ") .. " > " .. q(logpath) .. " 2>&1"
-  if P.WIN then cmd = 'cmd.exe /C "' .. cmd .. '"'
-  else cmd = "/bin/sh -c '" .. cmd:gsub("'", "'\\''") .. "'" end
-  reaper.ExecProcess(cmd, -1)
+  local prompt = (VERBATIM .. " " .. P.get("prompt")):gsub("%s+$", "")
+  args[#args + 1] = "--prompt"; args[#args + 1] = prompt
+  P.whisper_start(args, wdir, logpath)
   started = started or reaper.time_precise()
   wait_whisper()
 end
@@ -270,18 +269,18 @@ function wait_whisper()
   if #log ~= last_size then last_size = #log; last_change = now end
   local elapsed = math.floor(now - started)
   local line = string.format("Transcription Whisper… %d %%   (%d min %02d s)", math.floor(frac * 100), elapsed // 60, elapsed % 60)
-  if not ui.draw(0.25 + 0.72 * frac, line) then ui.close(); return end
+  if not ui.draw(0.25 + 0.72 * frac, line, P.whisper_activity(log, now - last_change)) then ui.close(); return end
 
   if log:find("total time") and P.exists(chunk_base(k1) .. ".json") then
     if k1 < #chunks then batch = batch + 1; last_size = -1; start_whisper(use_dtw ~= nil) return end
     finish() return
   end
-  local failed = log:find("error:") or log:find("failed to") or log:find("not recognized") or log:find("No such file")
+  local failed = log:find("error:") or log:find("failed to") or log:find("not recognized") or log:find("No such file") or log:find("usage:")
   if (failed and now - last_change > 3) or (now - last_change > 30 and #log == 0) or now - last_change > 300 then
     if use_dtw then last_size = -1; start_whisper(false) return end   -- nouvel essai sans DTW
     ui.close()
     local tail = log:sub(-900)
-    P.notify("Whisper n'a pas pu terminer.\n\nVérifiez les réglages (Toolbox - Reglages de transcription).\n\nDernières lignes du journal :\n" .. (tail ~= "" and tail or "(vide : le programme n'a pas démarré)"))
+    P.notify("Whisper n'a pas pu terminer.\n\nRelancez « Installer / réparer » (page Accueil). Si cela recommence, envoyez le journal à l'enseignant :\n" .. logpath .. "\n\nDernières lignes du journal :\n" .. (tail ~= "" and tail or "(vide : le programme n'a pas démarré)"))
     return
   end
   reaper.defer(wait_whisper)

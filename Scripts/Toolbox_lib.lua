@@ -2,7 +2,7 @@
 -- (ne pas lancer directement : chargé par les autres scripts)
 
 local P = {}
-P.VERSION = "0.10.2"
+P.VERSION = "0.10.3"
 P.SECTION = "PODSUITE"
 P.WIN = reaper.GetOS():find("Win") ~= nil
 P.SEP = P.WIN and "\\" or "/"
@@ -459,18 +459,98 @@ function P.template_from(s)
 end
 
 ---------------------------------------------------------------- Fenêtre de progression
+---------------------------------------------------------------- Lancer Whisper (Mac et Windows)
+-- Sur Windows, whisper-cli lit ses arguments dans la page de code du système (pas en UTF-8) : un chemin
+-- avec un accent (C:\Users\Hélène\…) le fait échouer. On ne lui passe donc que des chemins sans accent
+-- (nom court 8.3 de Windows, sinon dossier commun C:\Users\Public\Documents\Podcast ADR Toolbox), et ses
+-- arguments dans un fichier (@fichier), lu tel quel : le vocabulaire accentué arrive intact.
+function P.ascii(s) return not s:find("[\128-\255]") end
+local short_cache = {}
+function P.win_short(p)
+  if not P.WIN or P.ascii(p) then return p end
+  if short_cache[p] ~= nil then return short_cache[p] or nil end
+  local r = reaper.ExecProcess('cmd.exe /C for %I in ("' .. p .. '") do @echo %~sI', 8000) or ""
+  local out = (r:match("^%-?%d+\r?\n(.*)$") or ""):gsub("[\r\n]+$", "")
+  out = out:match("([^\r\n]+)$") or ""
+  local ok = out ~= "" and P.ascii(out) and out:find("^%a:\\")
+  short_cache[p] = ok and out or false
+  return ok and out or nil
+end
+function P.ascii_base()
+  local pub = os.getenv("PUBLIC") or "C:\\Users\\Public"
+  local b = pub .. "\\Documents\\Podcast ADR Toolbox"
+  if not P.ascii(b) then b = "C:\\Podcast ADR Toolbox" end
+  reaper.RecursiveCreateDirectory(b, 0)
+  return b
+end
+-- dossier de travail de Whisper : le dossier voulu s'il convient, sinon un équivalent sans accent
+function P.whisper_workdir(dir, name)
+  reaper.RecursiveCreateDirectory(dir, 0)
+  if not P.WIN or P.ascii(dir) then return dir end
+  local s = P.win_short(dir)
+  if s then return s end
+  local d = P.ascii_base() .. "\\travail\\" .. ((name or "projet"):gsub("[^%w%-_ ]", "_"))
+  reaper.RecursiveCreateDirectory(d, 0)
+  return d
+end
+-- modèle : nom court, sinon copie (une fois) dans le dossier commun sans accent
+function P.whisper_model()
+  local m = P.get("model")
+  if not P.WIN or P.ascii(m) then return m end
+  local s = P.win_short(m)
+  if s then return s end
+  local fname = (m:match("([^/\\]+)$") or "model.bin"):gsub("[^%w%-_%.]", "_")
+  local d = P.ascii_base() .. "\\modeles"
+  reaper.RecursiveCreateDirectory(d, 0)
+  local dst = d .. "\\" .. fname
+  local function size(p) local f = io.open(p, "rb"); if not f then return -1 end local n = f:seek("end"); f:close(); return n end
+  if size(dst) ~= size(m) then reaper.ExecProcess('cmd.exe /C copy /Y "' .. m .. '" "' .. dst .. '"', 600000) end
+  if size(dst) == size(m) then return dst end
+  return m
+end
+local function sq(s) return "'" .. s:gsub("'", "'\\''") .. "'" end
+-- ligne de commande de Whisper (sans redirection) ; args = arguments bruts, sans guillemets
+function P.whisper_cmdline(args, workdir)
+  local exe = P.get("whisper")
+  if P.WIN then
+    local rsp = workdir .. "\\whisper_args.txt"
+    local lines = {}
+    for i, a in ipairs(args) do lines[i] = tostring(a):gsub("[\r\n]+", " ") end
+    local f = io.open(rsp, "wb"); if f then f:write(table.concat(lines, "\n"), "\n"); f:close() end
+    return '"' .. exe .. '" "@' .. rsp .. '"'
+  end
+  local parts = { sq(exe) }
+  for _, a in ipairs(args) do parts[#parts + 1] = sq(tostring(a)) end
+  return table.concat(parts, " ")
+end
+-- lance Whisper en arrière-plan, sortie dans log
+function P.whisper_start(args, workdir, log)
+  local cl = P.whisper_cmdline(args, workdir)
+  if P.WIN then reaper.ExecProcess('cmd.exe /C "' .. cl .. ' > "' .. log .. '" 2>&1"', -1)
+  else reaper.ExecProcess("/bin/sh -c " .. sq(cl .. " > " .. sq(log) .. " 2>&1"), -1) end
+end
+-- ce que fait Whisper, d'après son journal (affiché sous la barre de progression)
+function P.whisper_activity(log, quiet)
+  local s
+  if log == "" then s = "Démarrage de Whisper…"
+  elseif not log:find("processing '") then s = "Chargement du modèle de transcription…"
+  else s = "Whisper écoute et écrit…" end
+  if quiet and quiet > 20 then s = s .. string.format("  (calcul en cours, %d s sans nouvelle)", math.floor(quiet)) end
+  return s
+end
+
 function P.progress(title)
   local U = dofile(P.DIR .. "Toolbox_ui.lua")
-  U.init(title, 460, 96)
+  U.init(title, 520, 96)
   local W = {}
-  function W.draw(frac, line)
-    gfx.set(0.09, 0.09, 0.1); gfx.rect(0, 0, 460, 96, 1)
+  function W.draw(frac, line, sub)
+    gfx.set(0.09, 0.09, 0.1); gfx.rect(0, 0, 520, 96, 1)
     gfx.setfont(1, "Arial", 16); gfx.set(0.92, 0.92, 0.9)
     gfx.x, gfx.y = 16, 14; gfx.drawstr(line or "")
-    gfx.set(0.2, 0.2, 0.23); gfx.rect(16, 48, 428, 14, 1)
-    gfx.set(0.94, 0.66, 0.23); gfx.rect(16, 48, math.floor((428) * math.max(0, math.min(1, frac))), 14, 1)
+    gfx.set(0.2, 0.2, 0.23); gfx.rect(16, 46, 488, 14, 1)
+    gfx.set(0.94, 0.66, 0.23); gfx.rect(16, 46, math.floor((488) * math.max(0, math.min(1, frac))), 14, 1)
     gfx.setfont(1, "Arial", 13); gfx.set(0.55, 0.55, 0.6)
-    gfx.x, gfx.y = 16, 70; gfx.drawstr("Fermer la fenêtre pour annuler")
+    gfx.x, gfx.y = 16, 70; gfx.drawstr((sub and sub ~= "") and (sub .. "  ·  fermer pour annuler") or "Fermer la fenêtre pour annuler")
     gfx.update()
     local alive = gfx.getchar() >= 0
     U.frame()

@@ -1,5 +1,10 @@
 # Nouveautés de Podcast & ADR Toolbox
 
+## 0.10.3 — 05/11/2026
+- Windows : Whisper s'installe de nouveau (la dernière version de whisper.cpp ne publie plus de version Windows ; la boîte à outils en garde une copie)
+- Windows : la transcription fonctionne avec des accents dans le nom d'utilisateur ou du dossier du projet
+- Transcription : la fenêtre de progression indique ce que fait Whisper (chargement du modèle, écoute, calcul en cours) et, en cas d'échec, où trouver le journal
+
 ## 0.10.2 — 04/11/2026
 - Correction : « Exporter une piste par personnage » règle bien la source d'export sur « Stems (selected tracks) » (un fichier par personnage) au lieu du master
 

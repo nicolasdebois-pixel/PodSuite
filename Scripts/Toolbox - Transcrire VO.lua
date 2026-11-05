@@ -24,8 +24,7 @@ end
 local item_pos = reaper.GetMediaItemInfo_Value(it, "D_POSITION")
 local item_len = reaper.GetMediaItemInfo_Value(it, "D_LENGTH")
 
-local work = P.RES .. P.SEP .. "adr"
-reaper.RecursiveCreateDirectory(work, 0)
+local work = P.whisper_workdir(P.RES .. P.SEP .. "adr", "adr")
 local wav, base, logp = work .. P.SEP .. "vo.wav", work .. P.SEP .. "vo", work .. P.SEP .. "whisper.log"
 local function q(s) return '"' .. s .. '"' end
 local function shell(cmd)
@@ -67,10 +66,10 @@ end
 local t0
 function start_whisper()
   os.remove(logp); os.remove(base .. ".json")
-  local args = { q(P.get("whisper")), "-m", q(P.get("model")), "-l", "auto", "-t", P.get("threads"), "-oj", "-pp",
-    "-ml", "84", "-sow", "-f", q(wav), "-of", q(base) }
+  local args = { "-m", P.whisper_model(), "-l", "auto", "-t", P.get("threads"), "-oj", "-pp",
+    "-ml", "84", "-sow", "-f", wav, "-of", base }
   if target == "en" then args[#args + 1] = "-tr" end             -- Whisper traduit lui-même vers l'anglais
-  reaper.ExecProcess(shell(table.concat(args, " ") .. " > " .. q(logp) .. " 2>&1"), -1)
+  P.whisper_start(args, work, logp)
   t0 = reaper.time_precise()
   wait_whisper()
 end
@@ -83,7 +82,7 @@ function wait_whisper()
   local now = reaper.time_precise()
   if #log ~= last_size then last_size = #log; last_change = now end
   local el = math.floor(now - t0)
-  if not ui.draw(0.15 + 0.6 * pct / 100, string.format("Transcription de la VO… %d %%  (%d min %02d s)", pct, el // 60, el % 60)) then ui.close(); return end
+  if not ui.draw(0.15 + 0.6 * math.min(100, pct) / 100, string.format("Transcription de la VO… %d %%  (%d min %02d s)", math.min(100, pct), el // 60, el % 60), P.whisper_activity(log, now - last_change)) then ui.close(); return end
   local json = P.read_file(base .. ".json")
   if log:find("total time") and json then
     local ok, data = pcall(P.json_decode, json)
