@@ -2,7 +2,7 @@
 -- (ne pas lancer directement : chargé par les autres scripts)
 
 local P = {}
-P.VERSION = "0.10.5"
+P.VERSION = "0.10.6"
 P.SECTION = "PODSUITE"
 P.WIN = reaper.GetOS():find("Win") ~= nil
 P.SEP = P.WIN and "\\" or "/"
@@ -252,7 +252,11 @@ function P.track_reader(tr)
       buf.clear()
       reaper.GetAudioAccessorSamples(acc, P.SR, 2, t, n, buf)
       local s, out = buf.table(), {}
-      for i = 1, n do out[i] = (s[2*i - 1] + s[2*i]) * 0.5 end
+      for i = 1, n do
+        local v = (s[2*i - 1] + s[2*i]) * 0.5
+        if v ~= v or v > 8 or v < -8 then v = 0 end          -- valeur invalide (NaN, infini) renvoyée par un effet : silence
+        out[i] = v
+      end
       return out
     end,
     close = function() reaper.DestroyAudioAccessor(acc) end,

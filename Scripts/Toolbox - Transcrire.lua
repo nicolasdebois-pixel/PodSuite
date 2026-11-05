@@ -124,6 +124,7 @@ function plan()
     local e = 0
     for ti = 1, #tracks do e = e + (energy[ti][f] or 0) end
     local d = 10 * math.log(e / 160 + 1e-12, 10)
+    if d ~= d or d < -120 then d = -120 elseif d > 20 then d = 20 end   -- valeurs aberrantes (NaN, infini)
     db[f] = d
     local lv = math.floor((d + 80) / 1.25)
     if lv < 0 then lv = 0 elseif lv > 63 then lv = 63 end

@@ -55,7 +55,7 @@ local function read_step()
   buf.clear()
   reaper.GetAudioAccessorSamples(acc, P.SR, 2, done / P.SR, n, buf)
   local s, out = buf.table(), {}
-  for i = 1, n do out[i] = (s[2 * i - 1] + s[2 * i]) * 0.5 end
+  for i = 1, n do local v = (s[2 * i - 1] + s[2 * i]) * 0.5; if v ~= v or v > 8 or v < -8 then v = 0 end; out[i] = v end
   P.wav_write(w, out, n)
   done = done + n
   if not ui.draw(0.15 * done / total, "Lecture de la VO…") then reaper.DestroyAudioAccessor(acc); P.wav_close(w); ui.close(); return end

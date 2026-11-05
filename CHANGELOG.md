@@ -1,5 +1,8 @@
 # Nouveautés de Podcast & ADR Toolbox
 
+## 0.10.6 — 05/11/2026
+- Transcription : plus d'erreur « bad argument #1 to 'sub' » quand un effet sur l'item renvoie des valeurs invalides (NaN, infini) ; ces passages sont traités comme du silence
+
 ## 0.10.5 — 05/11/2026
 - Mac Intel : Whisper calcule sur le processeur (la carte graphique le bloquait : test ou transcription figés)
 - Le test de l'installation s'arrête après 2 minutes avec un message au lieu de tourner sans fin ; Whisper est arrêté quand on annule ou quand il ne répond plus
