@@ -1,5 +1,9 @@
 # Nouveautés de Podcast & ADR Toolbox
 
+## 0.10.7 — 05/11/2026
+- Mac Intel : Whisper ne prépare plus la carte graphique au démarrage (GGML_METAL_DEVICES=0) : il restait bloqué avant même de charger le modèle
+- Installation : le journal du test de Whisper est complet (utile en cas de problème)
+
 ## 0.10.6 — 05/11/2026
 - Transcription : plus d'erreur « bad argument #1 to 'sub' » quand un effet sur l'item renvoie des valeurs invalides (NaN, infini) ; ces passages sont traités comme du silence
 

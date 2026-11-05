@@ -349,7 +349,7 @@ local function step_test()
   for i = 1, 2 * P.SR do s[i] = math.sin(i * 0.05) * 0.001 end
   P.wav_write(w, s, #s); P.wav_close(w)
   local log = tdir .. P.SEP .. "test.log"
-  local ok, why = run_bg({ P.whisper_cmdline({ "-m", P.whisper_model(), "-f", wav, "-l", P.get("lang"), "-t", P.get("threads"), "-np" }, tdir) }, log,
+  local ok, why = run_bg({ P.whisper_cmdline({ "-m", P.whisper_model(), "-f", wav, "-l", P.get("lang"), "-t", P.get("threads") }, tdir) }, log,
     function(t) status_line = "Test de Whisper… " .. mmss(t) .. (t > 20 and "  (normalement quelques secondes)" or "") end, 120, P.whisper_kill)
   if why == "timeout" then
     set("test", "fail", "Whisper bloqué")

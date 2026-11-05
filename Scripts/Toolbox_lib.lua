@@ -2,7 +2,7 @@
 -- (ne pas lancer directement : chargé par les autres scripts)
 
 local P = {}
-P.VERSION = "0.10.6"
+P.VERSION = "0.10.7"
 P.SECTION = "PODSUITE"
 P.WIN = reaper.GetOS():find("Win") ~= nil
 P.SEP = P.WIN and "\\" or "/"
@@ -535,7 +535,9 @@ function P.whisper_cmdline(args, workdir)
     local f = io.open(rsp, "wb"); if f then f:write(table.concat(lines, "\n"), "\n"); f:close() end
     return '"' .. exe .. '" "@' .. rsp .. '"'
   end
-  local parts = { sq(exe) }
+  -- Mac Intel : GGML_METAL_DEVICES=0 empêche Whisper de préparer la carte graphique au démarrage
+  -- (compilation des shaders Metal, qui bloque sur les Mac Intel même avec -ng)
+  local parts = { P.intel_mac() and ("GGML_METAL_DEVICES=0 " .. sq(exe)) or sq(exe) }
   for _, a in ipairs(args) do parts[#parts + 1] = sq(tostring(a)) end
   return table.concat(parts, " ")
 end
