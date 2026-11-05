@@ -2,7 +2,7 @@
   "name": "Podcast & ADR Toolbox",
   "category": "Toolbox",
   "package": "Podcast & ADR Toolbox",
-  "version": "0.11.3",
+  "version": "0.11.4",
   "author": "Nicolas Debois",
   "description": "Boîte à outils gratuite pour REAPER : dérushage de podcast par le texte (Whisper en local), ripple sur les bords des items, traitement de la voix (Vocal level & de-esser), contrôle du niveau avant l'export, et doublage (ADR) avec bande rythmo sur tablette. Une seule action à retenir : « Podcast & ADR Toolbox ».",
   "files": [
@@ -95,6 +95,7 @@
     }
   ],
   "changelog": [
-    "Les fenêtres de la boîte à outils s'ouvrent au centre de l'écran (celui où se trouve la souris) au lieu du coin inférieur gauche"
+    "Aimantation : uniquement aux items voisins, plus jamais à la grille. Avec l'extension SWS, les réglages d'aimantation du projet sont modifiés directement (la grille reste visible) ; sans SWS, les lignes de la grille sont masquées, ce qui coupe l'aimantation à la grille",
+    "Export podcast : le MP3 est rangé dans un dossier « EXPORTS » créé à côté du projet"
   ]
 }

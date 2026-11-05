@@ -71,7 +71,7 @@ local function find_ripple_cmds()
     local id = tonumber(reaper.GetExtState(SEC, "ripple_cmd_" .. k))
     if id then RIPPLE[k] = id else ok = false end
   end
-  for _, k in ipairs({ "toggle", "items", "grid" }) do
+  for _, k in ipairs({ "toggle", "items" }) do
     local id = tonumber(reaper.GetExtState(SEC, "snap_cmd_" .. k))
     if id and id > 0 then SNAP[k] = id end
   end
@@ -90,10 +90,6 @@ local function find_ripple_cmds()
       elseif n:find("toggle", 1, true) and n:find("snap", 1, true) and (n:find("item edge", 1, true) or n:find("media item", 1, true))
           and not n:find("grid", 1, true) and not n:find("midi", 1, true) and not SNAP.items then
         SNAP.items = id
-      elseif n:find("toggle", 1, true) and n:find("snap", 1, true) and n:find("grid", 1, true) and not SNAP.grid
-          and not (n:find("midi", 1, true) or n:find("relative", 1, true) or n:find("frame", 1, true) or n:find("line", 1, true)
-            or n:find("show", 1, true) or n:find("visible", 1, true) or n:find("division", 1, true) or n:find("swing", 1, true)) then
-        SNAP.grid = id
       elseif n:find("metadata", 1, true) and (n:find("render", 1, true) or n:find("project", 1, true))
           and not (n:find("item", 1, true) or n:find("marker", 1, true) or n:find("take", 1, true) or n:find("region", 1, true)) and not META then
         META = id
@@ -102,19 +98,48 @@ local function find_ripple_cmds()
   end
   reaper.SetExtState(SEC, "snap_cmd_toggle", tostring(SNAP.toggle or 0), true)
   reaper.SetExtState(SEC, "snap_cmd_items", tostring(SNAP.items or 0), true)
-  reaper.SetExtState(SEC, "snap_cmd_grid", tostring(SNAP.grid or 0), true)
   reaper.SetExtState(SEC, "meta_cmd", tostring(META or 0), true)
   reaper.SetExtState(SEC, "cmd_scan", "3", true)
 end
+-- Réglages d'aimantation du projet (variable « projshowgrid ») : &1 grille visible, &2 items → grille,
+-- &128 items → items voisins, &256 aimantation DÉSACTIVÉE, &1024 grille à toute distance,
+-- &32768 la grille N'aimante PAS selon sa visibilité (par défaut, une grille visible aimante tout).
+local function snapvar()
+  if reaper.SNM_GetIntConfigVar then return reaper.SNM_GetIntConfigVar("projshowgrid", -1) end
+  if reaper.get_config_var_string then local ok, v = reaper.get_config_var_string("projshowgrid"); if ok then return tonumber(v) end end
+end
+local GRIDLINES = 40145                                         -- Options: Toggle grid lines
 local function snap_on()
+  local v = snapvar()
+  if v and v >= 0 then
+    local items_ok = v & 128 == 128 and v & 256 == 0
+    local grid_off = v & 2 == 0 and v & 1024 == 0 and (v & 32768 == 32768 or v & 1 == 0)
+    return items_ok and grid_off
+  end
   return SNAP.toggle and reaper.GetToggleCommandState(SNAP.toggle) == 1
     and (not SNAP.items or reaper.GetToggleCommandState(SNAP.items) == 1)
 end
 local function set_snap(on)
+  -- aux bords des items voisins seulement, jamais à la grille
+  if reaper.SNM_SetIntConfigVar and snapvar() then              -- extension SWS : on règle directement le projet
+    local v = snapvar()
+    if on then
+      v = (v | 128 | 32768) & ~(2 | 256 | 1024)
+    else
+      v = v | 256
+    end
+    reaper.SNM_SetIntConfigVar("projshowgrid", v)
+    reaper.UpdateArrange()
+    return
+  end
+  -- sans SWS : actions de REAPER ; la grille masquée n'aimante plus (réglage par défaut « suit la visibilité »)
   if SNAP.toggle and (reaper.GetToggleCommandState(SNAP.toggle) == 1) ~= on then reaper.Main_OnCommand(SNAP.toggle, 0) end
   if on and SNAP.items and reaper.GetToggleCommandState(SNAP.items) ~= 1 then reaper.Main_OnCommand(SNAP.items, 0) end
-  -- aux bords des items seulement : pas à la grille (sinon les items sautent de division en division)
-  if on and SNAP.grid and reaper.GetToggleCommandState(SNAP.grid) == 1 then reaper.Main_OnCommand(SNAP.grid, 0) end
+  local gname = reaper.kbd_getTextFromCmd and reaper.kbd_getTextFromCmd(GRIDLINES, 0) or "grid"
+  if on and gname:lower():find("grid", 1, true) and reaper.GetToggleCommandState(GRIDLINES) == 1 then
+    local v = snapvar()
+    if not v or v < 0 or v & 32768 == 0 then reaper.Main_OnCommand(GRIDLINES, 0) end
+  end
 end
 local function ripple_mode()
   if RIPPLE.all and reaper.GetToggleCommandState(RIPPLE.all) == 1 then return "all" end
@@ -641,9 +666,11 @@ local function page_cut(x, y, w)
   text("Aimantation des items (snap)", x, y + 14, COL.text, 5)
   if SNAP.toggle then
     local on = snap_on()
-    if button(on and "Activée" or "Désactivée", x + w - 150, y + 12, 150, 30, false, on) then set_snap(not on) end
+    if button(on and "Activée" or "Désactivée", x + w - 150, y + 12, 150, 30, false, on) then
+      set_snap(not on); reaper.SetExtState(SEC, "snap_default", on and "off" or "on", true)
+    end
     y = wrap("Quand on déplace un item ou qu'on tire un de ses bords, il se colle au bord des items voisins. La grille n'aimante pas" ..
-      (SNAP.grid and "." or " : si les items sautent encore de division en division, décochez « Grid » dans Options › Snap/Grid settings."), x, y + 48, w - 180, COL.muted, 2) + 16
+      (reaper.SNM_SetIntConfigVar and "." or " (sans l'extension SWS, les lignes de la grille sont masquées pour cela)."), x, y + 48, w - 180, COL.muted, 2) + 16
   else
     y = wrap("Activez l'aimant de la barre d'outils de REAPER (clic droit dessus pour cocher l'aimantation aux items).", x, y + 48, w, COL.muted, 2) + 16
   end
@@ -764,6 +791,13 @@ local function prepare_mp3()
   reaper.GetSetProjectInfo(0, "RENDER_TAILFLAG", 0, true)
   reaper.GetSetProjectInfo_String(0, "RENDER_FORMAT", MP3_320, true)
   reaper.GetSetProjectInfo_String(0, "RENDER_PATTERN", "$project", true)
+  local _, fn = reaper.EnumProjects(-1)                        -- fichier rangé dans « EXPORTS », à côté du projet
+  local pdir = fn and fn ~= "" and fn:match("^(.*)[/\\]")
+  if pdir then
+    local ex = pdir .. P.SEP .. "EXPORTS"
+    reaper.RecursiveCreateDirectory(ex, 0)
+    reaper.GetSetProjectInfo_String(0, "RENDER_FILE", ex, true)
+  end
   -- fenêtre d'export pré-réglée, puis fenêtre des métadonnées par-dessus. Si la fenêtre d'export bloque REAPER
   -- jusqu'à sa fermeture (Main_OnCommand ne rend la main qu'après), on n'ouvre pas les métadonnées après coup.
   local t = reaper.time_precise()
@@ -860,7 +894,7 @@ local function page_export(x, y, w)
       local n, meta = prepare_mp3()
       if n == 0 then msg = "Aucun item audible à exporter."
       else
-        msg = "Export préparé : MP3 320 kbps, 44,1 kHz, du début du premier item à la fin du dernier (" .. n .. " items sélectionnés). " ..
+        msg = "Export préparé : MP3 320 kbps, 44,1 kHz, du début du premier item à la fin du dernier (" .. n .. " items sélectionnés), dans le dossier « EXPORTS » du projet. " ..
           (meta and "Remplissez les tags (titre, artiste, album, image…) dans la fenêtre des métadonnées, puis cliquez sur « Render 1 file » dans la fenêtre d'export."
             or "Pour les tags (titre, artiste, image…), cliquez sur « Metadata… » dans la fenêtre d'export, puis sur « Render 1 file ».")
       end
@@ -1369,9 +1403,9 @@ LAST_TOAST = reaper.GetExtState(SEC, "toast_id")
 if PODSUITE_TEST then PODSUITE_TEST.export_transcript, PODSUITE_TEST.export_chapters, PODSUITE_TEST.msg, PODSUITE_TEST.line_takes, PODSUITE_TEST.choose_take = export_transcript, export_chapters, function() return msg end, line_takes, choose_take end   -- tests automatiques
 reaper.atexit(function() restore_record_mode(); reaper.DeleteExtState(SEC, "hub_alive", false) end)
 find_ripple_cmds()
-if reaper.GetExtState(SEC, "snap_default") ~= "2" then          -- par défaut : items aimantés les uns aux autres, pas à la grille
-  if reaper.GetExtState(SEC, "snap_default") == "" or snap_on() then set_snap(true) end
-  reaper.SetExtState(SEC, "snap_default", "2", true)
+do                                                               -- par défaut : items aimantés les uns aux autres, pas à la grille
+  local st = reaper.GetExtState(SEC, "snap_default")
+  if st == "" or st == "1" or st == "2" or st == "on" then set_snap(true); reaper.SetExtState(SEC, "snap_default", "on", true) end
 end
 vocal_path = find_vocal()
 do local ip, port = A.lan_ip(), P.web_port(); if ip and port then tablet_url = "http://" .. ip .. ":" .. port .. "/doublage.html" end end

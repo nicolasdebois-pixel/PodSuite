@@ -1,5 +1,9 @@
 # Nouveautés de Podcast & ADR Toolbox
 
+## 0.11.4 — 05/11/2026
+- Aimantation : uniquement aux items voisins, plus jamais à la grille. Avec l'extension SWS, les réglages d'aimantation du projet sont modifiés directement (la grille reste visible) ; sans SWS, les lignes de la grille sont masquées, ce qui coupe l'aimantation à la grille
+- Export podcast : le MP3 est rangé dans un dossier « EXPORTS » créé à côté du projet
+
 ## 0.11.3 — 05/11/2026
 - Les fenêtres de la boîte à outils s'ouvrent au centre de l'écran (celui où se trouve la souris) au lieu du coin inférieur gauche
 
