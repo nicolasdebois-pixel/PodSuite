@@ -2,7 +2,7 @@
   "name": "Podcast & ADR Toolbox",
   "category": "Toolbox",
   "package": "Podcast & ADR Toolbox",
-  "version": "0.11.0",
+  "version": "0.11.1",
   "author": "Nicolas Debois",
   "description": "Boîte à outils gratuite pour REAPER : dérushage de podcast par le texte (Whisper en local), ripple sur les bords des items, traitement de la voix (Vocal level & de-esser), contrôle du niveau avant l'export, et doublage (ADR) avec bande rythmo sur tablette. Une seule action à retenir : « Podcast & ADR Toolbox ».",
   "files": [
@@ -95,11 +95,6 @@
     }
   ],
   "changelog": [
-    "Toutes les pages sont affichées (plus de choix « Je fais du podcast / du doublage / les deux ») et toutes les normes d'export",
-    "Export : la norme Spotify est retirée ; la cible du Podcast se règle (−16 LUFS par défaut, −14 ou −23 en un clic, ou au LU près)",
-    "Export podcast : MP3 320 kbps, 44,1 kHz, du début du premier item audible à la fin du dernier (items sélectionnés, points d'entrée/sortie posés), métadonnées intégrées et fenêtre des tags ID3 ouverte avant l'export",
-    "« 2 · Montage » devient « 2 · Édition » (la page règle les outils d'édition, elle ne monte rien)",
-    "Aimantation : aux bords des items seulement, plus à la grille",
-    "Plus de bouton « Ancrer » : la fenêtre reste flottante"
+    "Export podcast : un seul bouton « Préparer et lancer l'export » : la fenêtre d'export s'ouvre pré-réglée (MP3 320 kbps, points d'entrée/sortie autour des items), puis la fenêtre des métadonnées ; l'utilisateur clique lui-même sur « Render 1 file »"
   ]
 }

@@ -731,7 +731,6 @@ end
 
 -- MP3 CBR 320 kbps, qualité maximale (structure du format « l3pm » de REAPER, d'après l'API Ultraschall)
 local MP3_320 = "bDNwbUABAAAAAAAAAAAAAP////8EAAAAQAEAAAAAAAA="
-local mp3_ready = false
 -- sélectionne les items audibles et place les points d'entrée/sortie (sélection temporelle) autour d'eux
 local function prepare_mp3()
   local a, b, n = math.huge, -math.huge, 0
@@ -765,8 +764,13 @@ local function prepare_mp3()
   reaper.GetSetProjectInfo(0, "RENDER_TAILFLAG", 0, true)
   reaper.GetSetProjectInfo_String(0, "RENDER_FORMAT", MP3_320, true)
   reaper.GetSetProjectInfo_String(0, "RENDER_PATTERN", "$project", true)
-  if META then reaper.Main_OnCommand(META, 0) else reaper.Main_OnCommand(40015, 0) end
-  return n
+  -- fenêtre d'export pré-réglée, puis fenêtre des métadonnées par-dessus. Si la fenêtre d'export bloque REAPER
+  -- jusqu'à sa fermeture (Main_OnCommand ne rend la main qu'après), on n'ouvre pas les métadonnées après coup.
+  local t = reaper.time_precise()
+  reaper.Main_OnCommand(40015, 0)                              -- File: Render project to disk…
+  local blocked = reaper.time_precise() - t > 1
+  if META and not blocked then reaper.Main_OnCommand(META, 0) end
+  return n, (META and not blocked)
 end
 
 local function page_export(x, y, w)
@@ -852,20 +856,14 @@ local function page_export(x, y, w)
   y = y + 8
   if N.use == "podcast" then
     -- podcast : MP3 320 kbps, du début du premier item à la fin du dernier, tags ID3 remplis avant l'export
-    if button("1. Préparer l'export MP3 et remplir les tags", x, y, 380, 36, allok and not mp3_ready, mp3_ready) then
-      local n = prepare_mp3()
+    if button("Préparer et lancer l'export (MP3 320 kbps)", x, y, 380, 36, allok, false) then
+      local n, meta = prepare_mp3()
       if n == 0 then msg = "Aucun item audible à exporter."
       else
-        mp3_ready = true
-        msg = "Prêt : MP3 320 kbps, 44,1 kHz, du début du premier item à la fin du dernier (" .. n .. " items sélectionnés). " ..
-          (META and "Remplissez les tags (titre, artiste, album, image…) dans la fenêtre des métadonnées, fermez-la, puis cliquez sur « 2. Exporter »."
-            or "Cliquez sur « Metadata… » dans la fenêtre d'export pour remplir les tags (titre, artiste…), puis sur « Render ».")
+        msg = "Export préparé : MP3 320 kbps, 44,1 kHz, du début du premier item à la fin du dernier (" .. n .. " items sélectionnés). " ..
+          (meta and "Remplissez les tags (titre, artiste, album, image…) dans la fenêtre des métadonnées, puis cliquez sur « Render 1 file » dans la fenêtre d'export."
+            or "Pour les tags (titre, artiste, image…), cliquez sur « Metadata… » dans la fenêtre d'export, puis sur « Render 1 file ».")
       end
-    end
-    if button("2. Exporter", x + 392, y, 160, 36, mp3_ready, false) and mp3_ready then
-      reaper.Main_OnCommand(41824, 0)                          -- File: Render project, using the most recent render settings
-      mp3_ready = false
-      msg = "Export lancé : le MP3 est créé à côté du projet (dossier de rendu de REAPER), avec ses tags."
     end
     y = y + 44
     wrap("Pas de normalisation à l'export : le niveau est déjà réglé par la mesure et la correction ci-dessus.", x, y, w, COL.muted, 2)

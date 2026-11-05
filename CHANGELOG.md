@@ -1,5 +1,8 @@
 # Nouveautés de Podcast & ADR Toolbox
 
+## 0.11.1 — 05/11/2026
+- Export podcast : un seul bouton « Préparer et lancer l'export » : la fenêtre d'export s'ouvre pré-réglée (MP3 320 kbps, points d'entrée/sortie autour des items), puis la fenêtre des métadonnées ; l'utilisateur clique lui-même sur « Render 1 file »
+
 ## 0.11.0 — 05/11/2026
 - Toutes les pages sont affichées (plus de choix « Je fais du podcast / du doublage / les deux ») et toutes les normes d'export
 - Export : la norme Spotify est retirée ; la cible du Podcast se règle (−16 LUFS par défaut, −14 ou −23 en un clic, ou au LU près)
