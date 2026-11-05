@@ -1,5 +1,8 @@
 # Nouveautés de Podcast & ADR Toolbox
 
+## 0.10.4 — 05/11/2026
+- Installation : le modèle de transcription se choisit avec trois boutons dans la fenêtre (le menu déroulant pouvait se refermer tout seul sur Mac : « aucun modèle choisi »)
+
 ## 0.10.3 — 05/11/2026
 - Windows : Whisper s'installe de nouveau (la dernière version de whisper.cpp ne publie plus de version Windows ; la boîte à outils en garde une copie)
 - Windows : la transcription fonctionne avec des accents dans le nom d'utilisateur ou du dossier du projet

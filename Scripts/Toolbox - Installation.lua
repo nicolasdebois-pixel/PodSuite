@@ -35,6 +35,8 @@ local S = {}
 for _, s in ipairs(steps) do s.state = "todo"; s.info = ""; S[s.id] = s end
 local status_line, progress = "", nil
 local function set(id, state, info) S[id].state = state; S[id].info = info or S[id].info end
+local choices, picked = nil, nil              -- choix du modèle : boutons dans la fenêtre
+local mouse_was = false
 
 ---------------------------------------------------------------- Fenêtre
 local W, H = 600, 330
@@ -56,6 +58,21 @@ local function draw()
     gfx.set(0.92, 0.92, 0.92); gfx.x, gfx.y = 50, y; gfx.drawstr(s.label)
     gfx.set(0.6, 0.62, 0.66); gfx.x, gfx.y = 250, y; gfx.drawstr(s.info)
     y = y + 28
+  end
+  if choices then
+    local down = gfx.mouse_cap & 1 == 1
+    local click = down and not mouse_was
+    mouse_was = down
+    for i, c in ipairs(choices) do
+      local bx, by, bw, bh = 250, 60 + 2 * 28 + (i - 1) * 34, W - 274, 28
+      local over = gfx.mouse_x >= bx and gfx.mouse_x <= bx + bw and gfx.mouse_y >= by and gfx.mouse_y <= by + bh
+      if c.rec then gfx.set(0.98, 0.6, 0.2, over and 1 or 0.85) else gfx.set(0.2, 0.21, 0.24, over and 1 or 0.85) end
+      gfx.rect(bx, by, bw, bh, 1)
+      gfx.setfont(2, "Arial", 15)
+      if c.rec then gfx.set(0.1, 0.06, 0.02) else gfx.set(0.92, 0.92, 0.92) end
+      gfx.x, gfx.y = bx + 10, by + (bh - gfx.texth) / 2; gfx.drawstr(c.label)
+      if click and over then picked = i end
+    end
   end
   gfx.set(0.85, 0.85, 0.85); gfx.x, gfx.y = 24, H - 62; gfx.drawstr(status_line)
   if progress then
@@ -231,16 +248,16 @@ local function step_model()
     if is_model(p) then P.set("model", p); set("model", "ok", m.file); return end
   end
   local arm = reaper.GetOS():find("arm64") ~= nil
-  local items = {}
+  choices, picked = {}, nil
   for i, m in ipairs(MODELS) do
-    items[i] = string.format("%s%s — %d Mo (%s)", (i == (arm and 1 or 2)) and "!" or "", m.name, m.mb, m.note)
+    local rec = i == (arm and 1 or 2)
+    choices[i] = { label = string.format("%s — %d Mo (%s)%s", m.name, m.mb, m.note, rec and "  ← conseillé" or ""), rec = rec }
   end
-  status_line = "Choisissez le modèle dans le menu."
-  draw()
-  gfx.x, gfx.y = 250, 60 + 2 * 28
-  local choice = gfx.showmenu("#Quel modèle installer ?|" .. table.concat(items, "|"))
-  choice = choice - 1                       -- la 1re ligne est un titre
-  if choice < 1 or choice > #MODELS then abort("Installation annulée : aucun modèle choisi.") end
+  set("model", "doing", "")
+  status_line = "Cliquez sur le modèle à installer."
+  while not picked do y() end
+  local choice = picked
+  choices = nil
   local m = MODELS[choice]
   local dst = mdir .. P.SEP .. m.file
   local part = dst .. ".part"
@@ -357,12 +374,7 @@ local function main()
   draw()
   local warn = S.web.state ~= "ok"
   reaper.MB("La boîte à outils est prête" .. (warn and " (interface web à vérifier)" or "") .. ".\n\n" ..
-    "Pour travailler :\n" ..
-    "1. Enregistrez votre projet.\n" ..
-    "2. Lancez « Toolbox - Serveur de derushage » (laissez-le tourner).\n" ..
-    "3. Sélectionnez les items des intervenants, puis « Toolbox - Transcrire ».\n" ..
-    "4. Ouvrez la page de dérushage : " .. P.web_url() .. "\n\n" ..
-    "Astuce : ajoutez ces actions à une barre d'outils (clic droit sur une barre › Customize toolbar).", TITLE, 0)
+    "Pour transcrire : enregistrez votre projet, sélectionnez les items des micros, puis page Dérushage › « Transcrire la sélection ».", TITLE, 0)
   gfx.quit()
 end
 
