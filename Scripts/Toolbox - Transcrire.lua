@@ -269,7 +269,7 @@ function wait_whisper()
   if #log ~= last_size then last_size = #log; last_change = now end
   local elapsed = math.floor(now - started)
   local line = string.format("Transcription Whisper… %d %%   (%d min %02d s)", math.floor(frac * 100), elapsed // 60, elapsed % 60)
-  if not ui.draw(0.25 + 0.72 * frac, line, P.whisper_activity(log, now - last_change)) then ui.close(); return end
+  if not ui.draw(0.25 + 0.72 * frac, line, P.whisper_activity(log, now - last_change)) then ui.close(); P.whisper_kill(); return end
 
   if log:find("total time") and P.exists(chunk_base(k1) .. ".json") then
     if k1 < #chunks then batch = batch + 1; last_size = -1; start_whisper(use_dtw ~= nil) return end
@@ -277,6 +277,7 @@ function wait_whisper()
   end
   local failed = log:find("error:") or log:find("failed to") or log:find("not recognized") or log:find("No such file") or log:find("usage:")
   if (failed and now - last_change > 3) or (now - last_change > 30 and #log == 0) or now - last_change > 300 then
+    P.whisper_kill()
     if use_dtw then last_size = -1; start_whisper(false) return end   -- nouvel essai sans DTW
     ui.close()
     local tail = log:sub(-900)

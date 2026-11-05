@@ -2,7 +2,7 @@
   "name": "Podcast & ADR Toolbox",
   "category": "Toolbox",
   "package": "Podcast & ADR Toolbox",
-  "version": "0.10.4",
+  "version": "0.10.5",
   "author": "Nicolas Debois",
   "description": "Boîte à outils gratuite pour REAPER : dérushage de podcast par le texte (Whisper en local), ripple sur les bords des items, traitement de la voix (Vocal level & de-esser), contrôle du niveau avant l'export, et doublage (ADR) avec bande rythmo sur tablette. Une seule action à retenir : « Podcast & ADR Toolbox ».",
   "files": [
@@ -95,6 +95,7 @@
     }
   ],
   "changelog": [
-    "Installation : le modèle de transcription se choisit avec trois boutons dans la fenêtre (le menu déroulant pouvait se refermer tout seul sur Mac : « aucun modèle choisi »)"
+    "Mac Intel : Whisper calcule sur le processeur (la carte graphique le bloquait : test ou transcription figés)",
+    "Le test de l'installation s'arrête après 2 minutes avec un message au lieu de tourner sans fin ; Whisper est arrêté quand on annule ou quand il ne répond plus"
   ]
 }

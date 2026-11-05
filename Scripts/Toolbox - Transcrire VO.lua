@@ -82,7 +82,7 @@ function wait_whisper()
   local now = reaper.time_precise()
   if #log ~= last_size then last_size = #log; last_change = now end
   local el = math.floor(now - t0)
-  if not ui.draw(0.15 + 0.6 * math.min(100, pct) / 100, string.format("Transcription de la VO… %d %%  (%d min %02d s)", math.min(100, pct), el // 60, el % 60), P.whisper_activity(log, now - last_change)) then ui.close(); return end
+  if not ui.draw(0.15 + 0.6 * math.min(100, pct) / 100, string.format("Transcription de la VO… %d %%  (%d min %02d s)", math.min(100, pct), el // 60, el % 60), P.whisper_activity(log, now - last_change)) then ui.close(); P.whisper_kill(); return end
   local json = P.read_file(base .. ".json")
   if log:find("total time") and json then
     local ok, data = pcall(P.json_decode, json)
@@ -98,7 +98,7 @@ function wait_whisper()
     translate_next(1); return
   end
   if (log:find("error") and now - last_change > 3) or now - last_change > 300 then
-    ui.close(); P.notify("Whisper n'a pas pu terminer.\n\n" .. log:sub(-700)); return
+    P.whisper_kill(); ui.close(); P.notify("Whisper n'a pas pu terminer.\n\n" .. log:sub(-700)); return
   end
   reaper.defer(wait_whisper)
 end

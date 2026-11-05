@@ -2,7 +2,7 @@
 -- (ne pas lancer directement : chargé par les autres scripts)
 
 local P = {}
-P.VERSION = "0.10.4"
+P.VERSION = "0.10.5"
 P.SECTION = "PODSUITE"
 P.WIN = reaper.GetOS():find("Win") ~= nil
 P.SEP = P.WIN and "\\" or "/"
@@ -510,8 +510,20 @@ function P.whisper_model()
 end
 local function sq(s) return "'" .. s:gsub("'", "'\\''") .. "'" end
 -- ligne de commande de Whisper (sans redirection) ; args = arguments bruts, sans guillemets
+-- Mac Intel : le calcul sur la carte graphique (Metal) bloque Whisper sur beaucoup de Mac Intel → processeur seul
+function P.intel_mac() return not P.WIN and not reaper.GetOS():find("arm64") end
+-- arrête Whisper s'il tourne encore (annulation, blocage)
+function P.whisper_kill()
+  if P.WIN then reaper.ExecProcess('cmd.exe /C taskkill /F /IM whisper-cli.exe', 5000)
+  else reaper.ExecProcess("/bin/sh -c 'pkill -f whisper-cli'", 5000) end
+end
 function P.whisper_cmdline(args, workdir)
   local exe = P.get("whisper")
+  if P.intel_mac() then
+    local a2 = { "-ng" }
+    for _, a in ipairs(args) do a2[#a2 + 1] = a end
+    args = a2
+  end
   if P.WIN then
     local rsp = workdir .. "\\whisper_args.txt"
     local lines = {}
@@ -536,6 +548,7 @@ function P.whisper_activity(log, quiet)
   elseif not log:find("processing '") then s = "Chargement du modèle de transcription…"
   else s = "Whisper écoute et écrit…" end
   if quiet and quiet > 20 then s = s .. string.format("  (calcul en cours, %d s sans nouvelle)", math.floor(quiet)) end
+  if quiet and quiet > 120 then s = "Whisper ne répond plus depuis " .. math.floor(quiet) .. " s : fermez cette fenêtre pour l'arrêter" end
   return s
 end
 

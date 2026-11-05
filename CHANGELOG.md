@@ -1,5 +1,9 @@
 # Nouveautés de Podcast & ADR Toolbox
 
+## 0.10.5 — 05/11/2026
+- Mac Intel : Whisper calcule sur le processeur (la carte graphique le bloquait : test ou transcription figés)
+- Le test de l'installation s'arrête après 2 minutes avec un message au lieu de tourner sans fin ; Whisper est arrêté quand on annule ou quand il ne répond plus
+
 ## 0.10.4 — 05/11/2026
 - Installation : le modèle de transcription se choisit avec trois boutons dans la fenêtre (le menu déroulant pouvait se refermer tout seul sur Mac : « aucun modèle choisi »)
 

@@ -95,7 +95,7 @@ local function exec_sync(cmd, ms)
 end
 
 -- Lance une suite de commandes en arrière-plan ; renvoie true/false à la fin, en cédant la main à REAPER.
-local function run_bg(cmds, log, on_wait)
+local function run_bg(cmds, log, on_wait, limit, on_limit)
   local st = log .. ".status"
   os.remove(st); os.remove(log)
   local chain = table.concat(cmds, " && ")
@@ -113,6 +113,7 @@ local function run_bg(cmds, log, on_wait)
     if r and r:find("ok") then return true end
     if r and r:find("fail") then return false end
     if on_wait then on_wait(reaper.time_precise() - t0) end
+    if limit and reaper.time_precise() - t0 > limit then if on_limit then on_limit() end return false, "timeout" end
     y()
   end
 end
@@ -348,8 +349,14 @@ local function step_test()
   for i = 1, 2 * P.SR do s[i] = math.sin(i * 0.05) * 0.001 end
   P.wav_write(w, s, #s); P.wav_close(w)
   local log = tdir .. P.SEP .. "test.log"
-  local ok = run_bg({ P.whisper_cmdline({ "-m", P.whisper_model(), "-f", wav, "-l", P.get("lang"), "-t", P.get("threads"), "-np" }, tdir) }, log,
-    function(t) status_line = "Test de Whisper… " .. mmss(t) end)
+  local ok, why = run_bg({ P.whisper_cmdline({ "-m", P.whisper_model(), "-f", wav, "-l", P.get("lang"), "-t", P.get("threads"), "-np" }, tdir) }, log,
+    function(t) status_line = "Test de Whisper… " .. mmss(t) .. (t > 20 and "  (normalement quelques secondes)" or "") end, 120, P.whisper_kill)
+  if why == "timeout" then
+    set("test", "fail", "Whisper bloqué")
+    reaper.MB("Whisper n'a pas terminé le test en 2 minutes (il faut normalement quelques secondes) : il a été arrêté.\n\n" ..
+      "Envoyez ce journal à l'enseignant :\n" .. log .. "\n\n" .. tail(log, 500), TITLE, 0)
+    abort("Le test a échoué : Whisper bloqué.")
+  end
   if ok then set("test", "ok", "Whisper fonctionne"); return end
   set("test", "fail", "Whisper ne démarre pas")
   local msg = "Whisper est installé mais ne démarre pas.\n\nJournal :\n" .. tail(log, 500)
