@@ -1,5 +1,9 @@
 # Nouveautés de Podcast & ADR Toolbox
 
+## 0.10.8 — 05/11/2026
+- Mac : Whisper démarre de nouveau depuis REAPER (la commande est passée par un petit script : REAPER cassait les guillemets introduits en 0.10.3, d'où un test d'installation ou une transcription bloqués)
+- Mac : le journal de Whisper indique son code de sortie
+
 ## 0.10.7 — 05/11/2026
 - Mac Intel : Whisper ne prépare plus la carte graphique au démarrage (GGML_METAL_DEVICES=0) : il restait bloqué avant même de charger le modèle
 - Installation : le journal du test de Whisper est complet (utile en cas de problème)

@@ -2,7 +2,7 @@
 -- (ne pas lancer directement : chargé par les autres scripts)
 
 local P = {}
-P.VERSION = "0.10.7"
+P.VERSION = "0.10.8"
 P.SECTION = "PODSUITE"
 P.WIN = reaper.GetOS():find("Win") ~= nil
 P.SEP = P.WIN and "\\" or "/"
@@ -542,10 +542,18 @@ function P.whisper_cmdline(args, workdir)
   return table.concat(parts, " ")
 end
 -- lance Whisper en arrière-plan, sortie dans log
+-- Mac : la commande est écrite dans un petit script lancé tel quel. REAPER découpe lui-même la ligne passée à
+-- ExecProcess et ne comprend pas les guillemets « échappés » ('\'') : la commande ne démarrait jamais.
+function P.sh_run(body, name, ms)
+  reaper.RecursiveCreateDirectory(P.RES, 0)
+  local f = P.RES .. "/" .. name .. ".sh"
+  local h = io.open(f, "wb"); if h then h:write("#!/bin/sh\n", body, "\n"); h:close() end
+  return reaper.ExecProcess("/bin/sh '" .. f .. "'", ms or -1)
+end
 function P.whisper_start(args, workdir, log)
   local cl = P.whisper_cmdline(args, workdir)
   if P.WIN then reaper.ExecProcess('cmd.exe /C "' .. cl .. ' > "' .. log .. '" 2>&1"', -1)
-  else reaper.ExecProcess("/bin/sh -c " .. sq(cl .. " > " .. sq(log) .. " 2>&1"), -1) end
+  else P.sh_run("( " .. cl .. " ) > " .. sq(log) .. " 2>&1\necho \"[code de sortie : $?]\" >> " .. sq(log), "lancer_whisper", -1) end
 end
 -- ce que fait Whisper, d'après son journal (affiché sous la barre de progression)
 function P.whisper_activity(log, quiet)

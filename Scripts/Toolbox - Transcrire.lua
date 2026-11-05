@@ -276,7 +276,7 @@ function wait_whisper()
     if k1 < #chunks then batch = batch + 1; last_size = -1; start_whisper(use_dtw ~= nil) return end
     finish() return
   end
-  local failed = log:find("error:") or log:find("failed to") or log:find("not recognized") or log:find("No such file") or log:find("usage:")
+  local failed = log:find("error:") or log:find("failed to") or log:find("not recognized") or log:find("No such file") or log:find("usage:") or log:find("code de sortie : [1-9]")
   if (failed and now - last_change > 3) or (now - last_change > 30 and #log == 0) or now - last_change > 300 then
     P.whisper_kill()
     if use_dtw then last_size = -1; start_whisper(false) return end   -- nouvel essai sans DTW

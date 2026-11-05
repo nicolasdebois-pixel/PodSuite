@@ -97,7 +97,7 @@ function wait_whisper()
     end
     translate_next(1); return
   end
-  if (log:find("error") and now - last_change > 3) or now - last_change > 300 then
+  if ((log:find("error") or log:find("code de sortie : [1-9]")) and now - last_change > 3) or now - last_change > 300 then
     P.whisper_kill(); ui.close(); P.notify("Whisper n'a pas pu terminer.\n\n" .. log:sub(-700)); return
   end
   reaper.defer(wait_whisper)

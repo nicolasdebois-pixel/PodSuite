@@ -104,9 +104,9 @@ local function run_bg(cmds, log, on_wait, limit, on_limit)
     full = 'cmd.exe /C "(' .. chain .. ') > ' .. q(log) .. ' 2>&1 && (echo ok>' .. q(st) .. ') || (echo fail>' .. q(st) .. ')"'
   else
     local sh = "( " .. chain .. " ) > " .. q(log) .. " 2>&1; if [ $? -eq 0 ]; then echo ok > " .. q(st) .. "; else echo fail > " .. q(st) .. "; fi"
-    full = "/bin/sh -c '" .. sh:gsub("'", "'\\''") .. "'"
+    full = nil; P.sh_run(sh, "installation", -1)
   end
-  reaper.ExecProcess(full, -1)
+  if full then reaper.ExecProcess(full, -1) end
   local t0 = reaper.time_precise()
   while true do
     local r = P.read_file(st)
