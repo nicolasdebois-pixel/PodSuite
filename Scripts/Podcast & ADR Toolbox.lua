@@ -1147,14 +1147,21 @@ local function page_rec(x, y, w)
   -- options
   local function toggle(label, key, def, ox)
     local v = A.get(key, def) == "1"
-    local w2, c2 = chip((v and "✓ " or "") .. label, ox, y, nil, v); if c2 then A.set(key, v and "0" or "1") end
-    return w2
+    local lab = (v and "✓ " or "") .. label
+    gfx.setfont(4); local need = gfx.measurestr(lab) + 28
+    if ox > x and ox + need > x + w then y = y + 38; cx = x; ox = x end   -- plus de place : ligne suivante
+    local w2, c2 = chip(lab, ox, y, nil, v); if c2 then A.set(key, v and "0" or "1") end
+    cx = ox + w2 + 6
   end
   cx = x
-  cx = cx + toggle("Bips", "bips", "1", cx) + 6
+  toggle("Bips", "bips", "1", cx)
   if expert() then
-  if A.get("rec_mode", "line") ~= "free" then cx = cx + toggle("Répéter avant d'enregistrer", "loop", "0", cx) + 6 end
-  cx = cx + toggle("Suivante après la prise", "auto_next", "1", cx) + 18
+  if A.get("rec_mode", "line") ~= "free" then
+    toggle("Répéter avant d'enregistrer", "loop", "0", cx)
+    -- pendant la répétition (lecture, pas d'enregistrement) : bips au choix ; en enregistrement, ils suivent « Bips »
+    if A.get("loop", "0") == "1" then toggle("Bips en répétition (B)", "bips_play", "0", cx) end
+  end
+  toggle("Suivante après la prise", "auto_next", "1", cx)
   y = y + 38; cx = x
   text("Pré-roll", cx, y + 7, COL.muted, 2); cx = cx + 70
   local pr = A.get("preroll", "3")
@@ -1165,7 +1172,7 @@ local function page_rec(x, y, w)
   if pr == "off" and A.get("bips", "1") == "1" then text("(sans pré-roll, pas de bips)", cx + 8, y + 7, COL.muted, 2) end
   end
   y = y + 42
-  y = wrap("Raccourcis : ← / → réplique précédente / suivante · R enregistrer · Espace écouter/arrêter. Chaque passage crée une nouvelle prise sur la piste « Prises - Personnage » ; ◀ ▶ pour les comparer, ★ pour garder la meilleure." .. (expert() and " En continu, l'enregistrement part de la réplique affichée et enchaîne jusqu'à « Arrêter »." or ""), x, y, w, COL.muted, 2)
+  y = wrap("Raccourcis : ← / → réplique précédente / suivante · R enregistrer · Espace écouter/arrêter · B bips en répétition. Chaque passage crée une nouvelle prise sur la piste « Prises - Personnage » ; ◀ ▶ pour les comparer, ★ pour garder la meilleure." .. (expert() and " En continu, l'enregistrement part de la réplique affichée et enchaîne jusqu'à « Arrêter »." or ""), x, y, w, COL.muted, 2)
   if expert() then
     y = y + 10
     if button("Exporter une piste par personnage…", x, y, 300, 32) then
@@ -1223,7 +1230,7 @@ local HELP = {
     "Ouvrez la bande sur l'écran de la cabine (ou la tablette). Le comédien voit l'image, la réplique à dire en entier, puis la bande qui défile.",
     "Choisissez le personnage, puis Précédente / Suivante pour vous placer. Écouter (vert) pour répéter, Enregistrer (rouge) pour la prise.",
     "Double bip avant la réplique : « bip, bip, top », on parle au troisième temps.",
-    "« Répéter avant d'enregistrer » : avec « Écouter », la réplique est rejouée en boucle (pré-roll compris) jusqu'à « Arrêter », pour que le comédien cale son rythme. Sans effet pendant l'enregistrement.",
+    "« Répéter avant d'enregistrer » : avec « Écouter », la réplique est rejouée en boucle (pré-roll compris) jusqu'à « Arrêter », pour que le comédien cale son rythme. Sans effet pendant l'enregistrement. « Bips en répétition » (touche B) fait entendre ou coupe les bips pendant ces répétitions, même en pleine lecture ; à l'enregistrement, les bips suivent l'option « Bips ».",
     "Chaque passage crée une prise sur la piste « Prises - Personnage ». En continu : enchaîner plusieurs répliques jusqu'à « Arrêter »." } },
 }
 local help_open = false
@@ -1326,6 +1333,7 @@ local function loop()
   if ch == 32 and page ~= "rec" then reaper.Main_OnCommand(40044, 0)
   elseif ch == 26 or (ch == 122 and cap & 4 == 4) then reaper.Main_OnCommand(cap & 8 == 8 and 40030 or 40029, 0)
   elseif ch == 25 or (ch == 121 and cap & 4 == 4) then reaper.Main_OnCommand(40030, 0) end
+  if page == "rec" and (ch == 98 or ch == 66) then A.set("bips_play", A.get("bips_play", "0") == "1" and "0" or "1"); ch = 0 end   -- B : bips en répétition
   if page == "rec" and ch == 32 then ch = 0; if reaper.GetPlayState() & 1 == 1 then reaper.OnStopButton() else local D = adr_data(); rec_go(D, A.current(D.lines) or 1, "listen") end end
   if page == "rec" and (ch == 1818584692 or ch == 1919379572 or ch == 114 or ch == 82) then   -- ← → R
     local D = adr_data()

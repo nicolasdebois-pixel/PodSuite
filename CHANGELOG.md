@@ -1,5 +1,9 @@
 # Nouveautés de Podcast & ADR Toolbox
 
+## 0.11.2 — 05/11/2026
+- Enregistrement : avec « Répéter avant d'enregistrer », bouton « Bips en répétition » (touche B) pour entendre ou couper les bips pendant les répétitions, même en pleine lecture ; à l'enregistrement, les bips suivent l'option « Bips »
+- Enregistrement : les options passent à la ligne quand la fenêtre est étroite
+
 ## 0.11.1 — 05/11/2026
 - Export podcast : un seul bouton « Préparer et lancer l'export » : la fenêtre d'export s'ouvre pré-réglée (MP3 320 kbps, points d'entrée/sortie autour des items), puis la fenêtre des métadonnées ; l'utilisateur clique lui-même sur « Render 1 file »
 

@@ -136,12 +136,12 @@ local function loop()
   reaper.SetExtState(SEC, "focus", A.get("focus", ""), false)
   reaper.SetExtState(SEC, "curpos", A.get("curpos", ""), false)
 
-  -- bips audibles seulement en enregistrement (ou en lecture si demandé)
+  -- bips audibles en enregistrement ; en lecture, seulement pendant « Répéter avant d'enregistrer » avec « Bips en répétition »
   local ps = reaper.GetPlayState()
   local recording, playing = ps & 4 == 4, ps & 1 == 1
   local bt = A.find_track(A.BIPS)
   if bt then
-    local want = (recording or (playing and A.get("bips_play", "0") == "1")) and A.get("bips", "1") == "1"
+    local want = (recording or (playing and A.get("loop", "0") == "1" and A.get("bips_play", "0") == "1")) and A.get("bips", "1") == "1"
     local mute = want and 0 or 1
     if reaper.GetMediaTrackInfo_Value(bt, "B_MUTE") ~= mute then reaper.SetMediaTrackInfo_Value(bt, "B_MUTE", mute) end
   end
